@@ -1,0 +1,644 @@
+import { useState, useEffect } from "react";
+import {
+  saveCategories,
+  loadCategories,
+  saveProducts,
+  loadProducts,
+  saveOrders,
+  loadOrders
+} from "./db";
+
+const ADMIN_PIN = "1234";
+
+function App() {
+  const [mode, setMode] = useState("catalog");
+  const [pin, setPin] = useState("");
+
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [newCategory, setNewCategory] = useState("");
+
+  const [products, setProducts] = useState([]);
+
+  const [productName, setProductName] = useState("");
+  const [price, setPrice] = useState("");
+  const [productCategory, setProductCategory] = useState("");
+  const [units, setUnits] = useState([{ name: "Piece", multiplier: 1 }]);
+  const [productsLoaded, setProductsLoaded] = useState(false);
+  const [productImage, setProductImage] = useState(null);
+ const [viewProduct, setViewProduct] = useState(null);
+ const [cart, setCart] = useState([]);
+ const [selectedUnit, setSelectedUnit] = useState(null);
+const [qty, setQty] = useState(1);
+const [cartLoaded, setCartLoaded] = useState(false);
+const [customerName, setCustomerName] = useState("");
+const [orders, setOrders] = useState([]);
+const [ordersLoaded, setOrdersLoaded] = useState(false);
+
+
+
+
+
+
+function getCustomerOrders(name) {
+  if (!name) return [];
+
+  const key = name.trim().toLowerCase();
+
+  return orders.filter(o =>
+    o.customer &&
+    o.customer.toLowerCase().includes(key)
+  );
+}
+
+
+// generateWhatsAppMessage
+ function generateWhatsAppMessage() {
+  let msg = `Order\n\nCustomer: ${customerName || "N/A"}\n\n`;
+
+  cart.forEach((c, i) => {
+    msg += `${i + 1}) ${c.name}\n`;
+    msg += `   ${c.qty} ${c.unitName} × ₹${c.price} = ₹${c.total}\n\n`;
+  });
+
+  const grandTotal = cart.reduce((s, i) => s + i.total, 0);
+
+  msg += `------------------\nTotal: ₹${grandTotal}`;
+
+  return msg;
+}
+ 
+ //handleImageUpload 
+  function handleImageUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    setProductImage(reader.result); // Base64
+  };
+  reader.readAsDataURL(file);
+}
+
+
+//orders
+useEffect(() => {
+  loadOrders().then(data => {
+    setOrders(data || []);
+    setOrdersLoaded(true); // 🔑 VERY IMPORTANT
+  });
+}, []);
+
+useEffect(() => {
+  if (!ordersLoaded) return; // 🔒 block early overwrite
+  saveOrders(orders);
+}, [orders, ordersLoaded]);
+
+//cart
+useEffect(() => {
+  const savedCart = localStorage.getItem("cart");
+  if (savedCart) {
+    try {
+      setCart(JSON.parse(savedCart));
+    } catch (e) {
+      console.error("Cart parse error", e);
+    }
+  }
+  setCartLoaded(true);
+}, []);
+
+useEffect(() => {
+  if (!cartLoaded) return;   // 🔒 BLOCK early save
+  localStorage.setItem("cart", JSON.stringify(cart));
+}, [cart, cartLoaded]);
+
+
+  // Load categories
+  useEffect(() => {
+    loadCategories().then((data) => {
+      if (data.length === 0) {
+        
+        const defaults = [
+  { id: "c1", name: "Brooms" },
+  { id: "c2", name: "Mops" },
+  { id: "c3", name: "Buckets" },
+  { id: "c4", name: "Containers" },
+];
+        setCategories(defaults);
+        saveCategories(defaults);
+      } else {
+        setCategories(data);
+      }
+    });
+  }, []);
+  // selectedCategory
+  useEffect(() => {
+  if (categories.length > 0 && !selectedCategory) {
+    setSelectedCategory(categories[0].id);
+  }
+}, [categories, selectedCategory]);
+
+  // Save categories
+  useEffect(() => {
+    if (categories.length) saveCategories(categories);
+  }, [categories]);
+
+  // Load products
+  useEffect(() => {
+  loadProducts().then((data) => {
+    setProducts(data || []);
+    setProductsLoaded(true); // 🔑 mark as loaded
+  });
+}, [categories]);
+
+  // Save products
+useEffect(() => {
+  if (productsLoaded) {
+    saveProducts(products);
+  }
+}, [products, productsLoaded]);
+  // 🔐 Admin Login
+  if (mode === "adminLogin") {
+    return (
+      <div style={{
+    padding: 16,
+    maxWidth: 900,
+    margin: "0 auto",
+  }}>
+        <h2>Admin Login</h2>
+        <input
+          type="password"
+          placeholder="Enter PIN"
+          value={pin}
+          onChange={(e) => setPin(e.target.value)}
+        />
+        <br /><br />
+        <button onClick={() => (pin === ADMIN_PIN ? setMode("admin") : alert("Wrong PIN"))}>
+          Login
+        </button>
+        <br /><br />
+        <button onClick={() => setMode("catalog")}>Back</button>
+      </div>
+    );
+  }
+
+  // 🛠️ Admin Page
+  if (mode === "admin") {
+    return (
+      <div
+  style={{
+    padding: 16,
+    maxWidth: 900,
+    margin: "0 auto",
+  }}
+ >
+        <h2>Admin – Categories</h2>
+
+        <input
+          placeholder="New category"
+          value={newCategory}
+          onChange={(e) => setNewCategory(e.target.value)}
+        />
+        <button
+          onClick={() => {
+            if (newCategory.trim()) {
+              setCategories([
+  ...categories,
+  { id: Date.now().toString(), name: newCategory },
+]);
+              setNewCategory("");
+            }
+          }}
+        >
+          Add Category
+        </button>
+
+        <ul>
+          {categories.map((c) => (
+  <li key={c.id}>
+    {c.name}
+    <button
+      style={{ marginLeft: 10 }}
+      onClick={() =>
+        setCategories(categories.filter(x => x.id !== c.id))
+      }
+    >
+      Delete
+    </button>
+  </li>
+))}
+        </ul>
+
+        <hr />
+
+        <h3>Add Product</h3>
+
+        <input
+          placeholder="Product name"
+          value={productName}
+          onChange={(e) => setProductName(e.target.value)}
+        />
+        <br /><br />
+
+        <input
+          type="number"
+          placeholder="Primary price"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+        />
+        <br /><br />
+        <br />
+<input
+  type="file"
+  accept="image/*"
+  onChange={handleImageUpload}
+/>
+
+{productImage && (
+  <div style={{ marginTop: 10 }}>
+    <img
+      src={productImage}
+      alt="Preview"
+      style={{ width: 120, borderRadius: 6 }}
+    />
+  </div>
+)}
+
+        <select
+  value={productCategory}
+  onChange={(e) => setProductCategory(e.target.value)}
+>
+  <option value="">Select category</option>
+  {categories.map((c) => (
+    <option key={c.id} value={c.id}>
+      {c.name}
+    </option>
+  ))}
+</select>
+
+        <h4>Units</h4>
+
+        {units.map((u, i) => (
+          <div key={i}>
+            <input
+              placeholder="Unit name"
+              value={u.name}
+              onChange={(e) => {
+                const copy = [...units];
+                copy[i].name = e.target.value;
+                setUnits(copy);
+              }}
+            />
+            <input
+              type="number"
+              placeholder="Multiplier"
+              value={u.multiplier}
+              onChange={(e) => {
+                const copy = [...units];
+                copy[i].multiplier = Number(e.target.value);
+                setUnits(copy);
+              }}
+            />
+            {i !== 0 && (
+              <button onClick={() => setUnits(units.filter((_, x) => x !== i))}>
+                Remove
+              </button>
+            )}
+          </div>
+        ))}
+
+        <button onClick={() => setUnits([...units, { name: "", multiplier: 1 }])}>
+          + Add Unit
+        </button>
+
+        <br /><br />
+
+        <button
+          onClick={() => {
+            if (!productName || !price || !productCategory) {
+              alert("Fill all fields");
+              return;
+            }
+
+            setProducts([
+              ...products,
+              {
+                id: Date.now(),
+                name: productName,
+                price: Number(price),
+                categoryId: productCategory,
+                units,
+                image: productImage, // 👈 added
+              },
+            ]);
+
+            setProductName("");
+            setPrice("");
+            setProductCategory("");
+            setProductImage(null);
+            setUnits([{ name: "Piece", multiplier: 1 }]);
+          }}
+        >
+          Save Product
+        </button>
+
+        <br /><br />
+        <button onClick={() => setMode("catalog")}>Back to Catalog</button>
+      </div>
+    );
+  }
+
+// 👀 Catalog
+if (viewProduct) {
+  return (
+    <div
+    style={{
+    padding: 16,
+    maxWidth: 900,
+    margin: "0 auto",
+  }}>
+      <button onClick={() => setViewProduct(null)}>⬅ Back</button>
+
+      <h2 style={{ marginBottom: 6 }}>{viewProduct.name}</h2>
+
+      {viewProduct.image && (
+        <img
+          src={viewProduct.image}
+          alt={viewProduct.name}
+          style={{
+            width: "100%",
+            maxWidth: 300,
+            borderRadius: 10,
+            marginBottom: 10,
+          }}
+        />
+      )}
+
+      <p style={{ fontSize: 18, fontWeight: 600 }}>
+        Price: ₹{viewProduct.price} / {viewProduct.units[0].name}
+      </p>
+
+      <h4>Select Unit</h4>
+      <select
+  value={selectedUnit?.name}
+  onChange={(e) => {
+    const u = viewProduct.units.find(x => x.name === e.target.value);
+    setSelectedUnit(u);
+  }}
+>
+  {viewProduct.units.map((u, i) => (
+    <option key={i} value={u.name}>
+      {u.name}
+    </option>
+  ))}
+</select>
+
+      <h4>Quantity</h4>
+     <input
+  type="number"
+  min="1"
+  value={qty}
+  onChange={(e) => setQty(Number(e.target.value))}
+/>
+
+      <br /><br />
+
+      <button
+  onClick={() => {
+    const total =
+      viewProduct.price * selectedUnit.multiplier * qty;
+
+    setCart([
+      ...cart,
+      {
+        productId: viewProduct.id,
+        name: viewProduct.name,
+        unitName: selectedUnit.name,
+        unitMultiplier: selectedUnit.multiplier,
+        price: viewProduct.price,
+        qty,
+        total,
+      },
+    ]);
+
+    setViewProduct(null); // back to catalog
+  }}
+  style={{
+    width: "100%",
+    padding: 14,
+    fontSize: 16,
+    background: "#2563eb",
+    color: "#fff",
+    border: "none",
+    borderRadius: 10,
+  }}
+>
+  Add to Cart
+</button>
+    </div>
+  );
+}
+return (
+  <div style={{ padding: 20 }}>
+    <h2>Product Categories</h2>
+
+    {categories.map((c) => (
+  <button
+    key={c.id}
+    style={{
+    margin: 4,
+    padding: "10px 16px",
+    borderRadius: 999,
+    border: "none",
+    fontSize: 14,
+    background: selectedCategory === c.id ? "#2563eb" : "#fff",
+    color: selectedCategory === c.id ? "#fff" : "#111",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+  }}
+    onClick={() => setSelectedCategory(c.id)}
+  >
+    {c.name}
+  </button>
+))}
+
+    <hr />
+
+{selectedCategory && (
+  <>
+    <h3>Products</h3>
+<p>Total products in DB: {products.length}</p>
+    {products.filter(p => p.categoryId === selectedCategory).length === 0 && (
+      <p>No products added</p>
+    )}
+
+    {products
+      .filter(p => p.categoryId === selectedCategory)
+      .map(p => (
+       <div
+  key={p.id}
+  onClick={() => {
+  setViewProduct(p);
+  setSelectedUnit(p.units[0]);
+  setQty(1);
+}}
+
+  style={{
+    display: "flex",
+    gap: 12,
+    alignItems: "center",
+    background: "#fff",
+    padding: 12,
+    marginBottom: 10,
+    borderRadius: 12,
+    boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+  }}
+>
+  {p.image && (
+    <img
+      src={p.image}
+      alt={p.name}
+      style={{
+    width: 80,
+    height: 80,
+    objectFit: "cover",
+    borderRadius: 10,
+  }}
+    />
+  )}
+  <strong>{p.name}</strong>
+  <div>₹{p.price} / {p.units[0].name}</div>
+</div>
+      ))}
+  </>
+)}
+
+<hr />
+<div
+  style={{
+    marginTop: 20,
+    background: "#fff",
+    padding: 14,
+    borderRadius: 14,
+    boxShadow: "0 1px 6px rgba(0,0,0,0.08)",
+  }}
+>
+<h3>Cart</h3>
+<p>Total orders saved: {orders.length}</p>
+<input
+  placeholder="Customer name"
+  value={customerName}
+  onChange={(e) => setCustomerName(e.target.value)}
+  style={{
+    width: "100%",
+    padding: 8,
+    marginBottom: 10,
+    borderRadius: 6,
+    border: "1px solid #ccc",
+  }}
+/>
+{customerName && getCustomerOrders(customerName).length > 0 && (
+  <div
+    style={{
+      border: "1px solid #ddd",
+      padding: 10,
+      borderRadius: 6,
+      marginBottom: 10,
+      background: "#f9fafb",
+    }}
+  >
+    <strong>Previous orders</strong>
+
+    {getCustomerOrders(customerName)
+      .slice(-3) // last 3 orders
+      .reverse()
+      .map((o, i) => (
+        <div key={i} style={{ marginTop: 6 }}>
+          <div style={{ fontSize: 12, color: "#555" }}>
+            {new Date(o.date).toLocaleDateString()} – ₹{o.total}
+          </div>
+          <ul style={{ paddingLeft: 16 }}>
+            {o.items.map((it, x) => (
+              <li key={x}>
+                {it.name} ({it.qty} {it.unitName})
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+  </div>
+)}
+
+{cart.length === 0 && <p>No items in cart</p>}
+
+{cart.map((c, i) => (
+  <div
+    key={i}
+    style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  }}
+  >
+    <strong>{c.name}</strong>
+    <div>
+      {c.qty} × {c.unitName} = ₹{c.total}
+    </div>
+    <button
+      onClick={() =>
+        setCart(cart.filter((_, x) => x !== i))
+      }
+    >
+      Remove
+    </button>
+  </div>
+))}
+<h4>
+  Grand Total: ₹
+  {cart.reduce((sum, i) => sum + i.total, 0)}
+</h4>
+    <hr />
+    <button
+  disabled={cart.length === 0}
+  style={{
+    width: "100%",
+    padding: 14,
+    background: "#25D366",
+    color: "#fff",
+    border: "none",
+    borderRadius: 12,
+    fontSize: 18,
+    fontWeight: 600,
+    marginTop: 10,
+  }}
+  onClick={() => {
+    const text = encodeURIComponent(generateWhatsAppMessage());
+    const url = `https://wa.me/?text=${text}`;
+    window.open(url, "_blank");
+
+    // clear cart after send
+    const newOrder = {
+  id: Date.now(),
+  customer: customerName || "Unknown",
+  date: new Date().toISOString(),
+  items: cart,
+  total: cart.reduce((s, i) => s + i.total, 0),
+};
+
+setOrders([...orders, newOrder]);
+
+// clear cart
+setCart([]);
+setCustomerName("");
+localStorage.removeItem("cart");
+  }}
+>
+  Send Order via WhatsApp
+</button>
+    </div>
+    <button onClick={() => setMode("adminLogin")}>Admin</button>
+  </div>
+);
+}
+
+export default App;

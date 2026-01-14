@@ -1,0 +1,43 @@
+/* RESET */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+
+/* APP BASE */
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  background: #f3f4f6;
+  color: #111827;
+}
+
+/* LINKS */
+a {
+  color: #2563eb;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* BUTTONS */
+button {
+  cursor: pointer;
+  border-radius: 8px;
+  border: none;
+  font-family: inherit;
+}
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
