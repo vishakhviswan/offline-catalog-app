@@ -92,7 +92,7 @@ export default function ProductView({
         <div
           style={{
             position: "relative",
-            height: 240,
+            height: "55vh",
             background: "#f3f4f6",
             borderRadius: 12,
             display: "flex",
@@ -278,13 +278,23 @@ export default function ProductView({
         }}
       >
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, color: "#6b7280" }}>
-            {product.name}
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>
-            ₹{product.price * (selectedUnit?.multiplier || 1)}
-          </div>
-        </div>
+  <div style={{ fontSize: 13, color: "#6b7280" }}>
+    {product.name}
+  </div>
+
+  <div style={{ fontSize: 14, color: "#6b7280", marginTop: 2 }}>
+    Total
+  </div>
+
+  <div style={{ fontSize: 22, fontWeight: 700 }}>
+    ₹{(cartItem?.qty || 1) * product.price * (selectedUnit?.multiplier || 1)}
+  </div>
+
+  <div style={{ fontSize: 12, color: "#9ca3af" }}>
+    {(cartItem?.qty || 1)} × ₹{product.price * (selectedUnit?.multiplier || 1)}
+    {selectedUnit ? ` / ${selectedUnit.name}` : ""}
+  </div>
+</div>
 
         {!cartItem ? (
           <button

@@ -1,4 +1,8 @@
 import { useEffect, useState } from "react";
+import CategorySelect from "./CategorySelect";
+import UnitSelector from "./UnitSelector";
+
+/* ================= MAIN COMPONENT ================= */
 
 export default function AdminProductForm({
   categories,
@@ -7,10 +11,9 @@ export default function AdminProductForm({
   setProducts,
   editingProduct,
   setEditingProduct,
-  units,          // master units
-  setUnits,       // 🔥 IMPORTANT
+  units,
 }) {
-  /* ================= STATE ================= */
+  /* ===== STATE ===== */
 
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -21,43 +24,23 @@ export default function AdminProductForm({
     { name: "Piece", multiplier: 1 },
   ]);
 
-  const [newCategory, setNewCategory] = useState("");
-  const [showCategoryInput, setShowCategoryInput] = useState(false);
-
-  const [newUnitName, setNewUnitName] = useState("");
-  const [newUnitMultiplier, setNewUnitMultiplier] = useState("");
-  const [showUnitInput, setShowUnitInput] = useState(false);
-
-  const [imageKey, setImageKey] = useState(Date.now());
-
-  /* ================= EDIT MODE ================= */
+  /* ===== LOAD EDITING PRODUCT ===== */
 
   useEffect(() => {
-    if (editingProduct) {
-      setName(editingProduct.name);
-      setPrice(editingProduct.price);
-      setCategoryId(editingProduct.categoryId);
-      setImage(editingProduct.image || null);
-      setProductUnits(editingProduct.units || []);
-      setImageKey(Date.now());
-    }
+    if (!editingProduct) return;
+
+    setName(editingProduct.name || "");
+    setPrice(editingProduct.price || "");
+    setCategoryId(editingProduct.categoryId || "");
+    setImage(editingProduct.image || null);
+    setProductUnits(
+      editingProduct.units?.length
+        ? editingProduct.units
+        : [{ name: "Piece", multiplier: 1 }]
+    );
   }, [editingProduct]);
 
-  /* ================= HELPERS ================= */
-
-  function handleImage(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => setImage(reader.result);
-    reader.readAsDataURL(file);
-  }
-
-  function addUnitToProduct(unit) {
-    if (productUnits.find((u) => u.name === unit.name)) return;
-    setProductUnits([...productUnits, unit]);
-  }
+  /* ===== HELPERS ===== */
 
   function resetForm() {
     setName("");
@@ -66,7 +49,6 @@ export default function AdminProductForm({
     setImage(null);
     setProductUnits([{ name: "Piece", multiplier: 1 }]);
     setEditingProduct(null);
-    setImageKey(Date.now());
   }
 
   function saveProduct() {
@@ -103,152 +85,123 @@ export default function AdminProductForm({
     resetForm();
   }
 
-  /* ================= UI ================= */
+  /* ===== UI ===== */
 
   return (
     <div style={card}>
       <h3>{editingProduct ? "Edit Product" : "Add New Product"}</h3>
 
-      {/* NAME */}
-      <label>Name *</label>
-      <input value={name} onChange={(e) => setName(e.target.value)} />
+      {/* BASIC INFO */}
+      <Section title="Basic Information">
+        <Input
+          label="Product Name"
+          value={name}
+          onChange={setName}
+          placeholder="Eg: Assam Grass Broom"
+        />
 
-      {/* PRICE */}
-      <label>Base Price *</label>
-      <input
-        type="number"
-        min="0"
-        value={price}
-        onChange={(e) => setPrice(e.target.value)}
-      />
+        <CategorySelect
+          categories={categories}
+          categoryId={categoryId}
+          setCategoryId={setCategoryId}
+          setCategories={setCategories}
+        />
+      </Section>
 
-      {/* CATEGORY */}
-      <label>Category *</label>
-      <select
-        value={categoryId}
-        onChange={(e) => setCategoryId(e.target.value)}
-      >
-        <option value="">Select category</option>
-        {categories.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
+      {/* PRICE & UNITS */}
+      <Section title="Price & Units">
+        <Input
+          label="Base Price (₹)"
+          type="number"
+          value={price}
+          onChange={setPrice}
+          placeholder="Eg: 85"
+        />
 
-      {!showCategoryInput ? (
-        <button style={linkBtn} onClick={() => setShowCategoryInput(true)}>
-          + Add new category
-        </button>
-      ) : (
-        <div style={row}>
-          <input
-            placeholder="New category name"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value)}
-          />
-          <button
-            onClick={() => {
-              if (!newCategory.trim()) return;
-              const newCat = { id: Date.now().toString(), name: newCategory.trim() };
-              setCategories([...categories, newCat]);
-              setCategoryId(newCat.id);
-              setNewCategory("");
-              setShowCategoryInput(false);
-            }}
-          >
-            Add
-          </button>
-        </div>
-      )}
+        <UnitSelector
+          units={units}
+          selectedUnits={productUnits}
+          setSelectedUnits={setProductUnits}
+        />
+      </Section>
 
       {/* IMAGE */}
-      <label>Product Image</label>
-      <input
-        key={imageKey}
-        type="file"
-        accept="image/*"
-        onChange={handleImage}
-      />
+      <Section title="Product Image">
+        <ImagePicker image={image} setImage={setImage} />
+      </Section>
 
-      {image && (
-        <img src={image} alt="preview" style={{ width: 120, marginTop: 8 }} />
-      )}
-
-      {/* UNITS */}
-      <label>Units</label>
-
-      {productUnits.map((u, i) => (
-        <div key={i} style={{ ...chip, display: "inline-flex", gap: 6 }}>
-          <span>{u.name} × {u.multiplier}</span>
-          {i !== 0 && (
-            <button
-              onClick={() =>
-                setProductUnits(productUnits.filter((_, x) => x !== i))
-              }
-              style={removeBtn}
-            >
-              ×
-            </button>
-          )}
-        </div>
-      ))}
-
-      <select
-        onChange={(e) => {
-          const u = units.find((x) => x.name === e.target.value);
-          if (u) addUnitToProduct(u);
-        }}
-      >
-        <option value="">Add existing unit</option>
-        {units.map((u, i) => (
-          <option key={i} value={u.name}>
-            {u.name}
-          </option>
-        ))}
-      </select>
-
-      {!showUnitInput ? (
-        <button style={linkBtn} onClick={() => setShowUnitInput(true)}>
-          + Create new unit
-        </button>
-      ) : (
-        <div style={row}>
-          <input
-            placeholder="Unit name"
-            value={newUnitName}
-            onChange={(e) => setNewUnitName(e.target.value)}
-          />
-          <input
-            type="number"
-            min="1"
-            placeholder="Multiplier"
-            value={newUnitMultiplier}
-            onChange={(e) => setNewUnitMultiplier(e.target.value)}
-          />
-          <button
-            onClick={() => {
-              if (!newUnitName || !newUnitMultiplier) return;
-              const u = {
-                name: newUnitName.trim(),
-                multiplier: Number(newUnitMultiplier),
-              };
-              setUnits([...units, u]);      // 🔥 SAFE
-              addUnitToProduct(u);
-              setNewUnitName("");
-              setNewUnitMultiplier("");
-              setShowUnitInput(false);
-            }}
-          >
-            Add
-          </button>
-        </div>
-      )}
-
-      {/* SAVE */}
-      <button style={saveBtn} onClick={saveProduct}>
+      {/* ACTIONS */}
+      <button onClick={saveProduct} style={primaryBtn}>
         {editingProduct ? "Update Product" : "Save Product"}
       </button>
+
+      {editingProduct && (
+        <button onClick={resetForm} style={secondaryBtn}>
+          Cancel Edit
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ================= SUB COMPONENTS ================= */
+
+function Section({ title, children }) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={sectionTitle}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function Input({ label, value, onChange, ...props }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={labelStyle}>{label}</div>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        {...props}
+        style={input}
+      />
+    </div>
+  );
+}
+
+function ImagePicker({ image, setImage }) {
+  const [fileName, setFileName] = useState("");
+
+  function onPick(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setFileName(file.name);
+
+    const reader = new FileReader();
+    reader.onload = () => setImage(reader.result);
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={imageBox}>
+          {image ? (
+            <img src={image} style={imagePreview} />
+          ) : (
+            "📦"
+          )}
+        </div>
+
+        <input type="file" accept="image/*" onChange={onPick} />
+      </div>
+
+      {fileName && (
+        <div style={{ fontSize: 12, marginTop: 6, color: "#374151" }}>
+          Selected: {fileName}
+        </div>
+      )}
     </div>
   );
 }
@@ -257,47 +210,65 @@ export default function AdminProductForm({
 
 const card = {
   background: "#fff",
+  borderRadius: 16,
   padding: 16,
-  borderRadius: 14,
   boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
   marginBottom: 20,
-  display: "flex",
-  flexDirection: "column",
-  gap: 8,
 };
 
-const row = { display: "flex", gap: 8 };
-
-const chip = {
-  padding: "4px 8px",
-  background: "#e5e7eb",
-  borderRadius: 999,
-  fontSize: 12,
-  marginRight: 6,
+const sectionTitle = {
+  fontSize: 14,
+  fontWeight: 600,
+  marginBottom: 8,
+  color: "#374151",
 };
 
-const removeBtn = {
-  border: "none",
-  background: "transparent",
-  color: "#ef4444",
-  fontWeight: 700,
-  cursor: "pointer",
-};
-
-const linkBtn = {
-  background: "none",
-  border: "none",
-  color: "#2563eb",
+const labelStyle = {
   fontSize: 13,
-  padding: 0,
+  marginBottom: 4,
 };
 
-const saveBtn = {
-  marginTop: 10,
+const input = {
+  width: "100%",
   padding: 12,
+  fontSize: 16,
+  borderRadius: 10,
+  border: "1px solid #d1d5db",
+};
+
+const imageBox = {
+  width: 80,
+  height: 80,
+  borderRadius: 12,
+  background: "#f3f4f6",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  overflow: "hidden",
+};
+
+const imagePreview = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+};
+
+const primaryBtn = {
+  width: "100%",
+  padding: 14,
   background: "#2563eb",
   color: "#fff",
   border: "none",
-  borderRadius: 10,
+  borderRadius: 12,
+  fontSize: 16,
   fontWeight: 600,
+};
+
+const secondaryBtn = {
+  width: "100%",
+  padding: 12,
+  marginTop: 8,
+  background: "#e5e7eb",
+  border: "none",
+  borderRadius: 12,
 };

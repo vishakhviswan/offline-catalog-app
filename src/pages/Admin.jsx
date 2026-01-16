@@ -5,6 +5,8 @@ import AdminProductList from "../components/AdminProductList";
 import CustomerManager from "../components/CustomerManager";
 import UnitManager from "../components/UnitManager";
 import AdminBottomBar from "../components/AdminBottomBar";
+import CategoryManager from "../components/CategoryManager";
+
 
 export default function Admin({
   categories,
@@ -87,8 +89,10 @@ export default function Admin({
       {/* CATEGORIES */}
 {adminTab === "categories" && (
   <div style={{ padding: 16 }}>
-    <h3>Categories</h3>
-    <p>Category manager coming soon</p>
+    <CategoryManager
+      categories={categories}
+      setCategories={setCategories}
+    />
   </div>
 )}
 

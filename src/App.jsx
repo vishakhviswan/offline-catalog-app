@@ -27,23 +27,13 @@ function App() {
   const [mode, setMode] = useState("catalog");
   const [pin, setPin] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
-
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [newCategory, setNewCategory] = useState("");
-
   const [products, setProducts] = useState([]);
-
-  //const [productName, setProductName] = useState("");
- // const [price, setPrice] = useState("");
- // const [productCategory, setProductCategory] = useState("");
-//  const [units, setUnits] = useState([{ name: "Piece", multiplier: 1 }]);
   const [productsLoaded, setProductsLoaded] = useState(false);
-//  const [productImage, setProductImage] = useState(null);
  const [viewProduct, setViewProduct] = useState(null);
  const [cart, setCart] = useState([]);
-// const [selectedUnit, setSelectedUnit] = useState(null);
-//const [qty, setQty] = useState(1);
 const [cartLoaded, setCartLoaded] = useState(false);
 const [customerName, setCustomerName] = useState("");
 const [orders, setOrders] = useState([]);
@@ -208,17 +198,6 @@ function getCustomerOrders(name) {
   return msg;
 }
  
- //handleImageUpload 
-  function handleImageUpload(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    setProductImage(reader.result); // Base64
-  };
-  reader.readAsDataURL(file);
-}
 
 
 useEffect(() => {

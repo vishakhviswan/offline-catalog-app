@@ -1,25 +1,31 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 export default function UnitManager({
   units,
   setUnits,
-  products = [], // 🔥 REQUIRED for safety check
+  products = [],
 }) {
   const [name, setName] = useState("");
   const [multiplier, setMultiplier] = useState("");
+  const [search, setSearch] = useState("");
 
-  // 🔒 check if unit is used in any product
+  /* ================= SAFETY ================= */
+
   function isUnitUsed(unitName) {
     return products.some((p) =>
       p.units?.some((u) => u.name === unitName)
     );
   }
 
+  /* ================= ADD ================= */
+
   function addUnit() {
     if (!name.trim() || !multiplier) return;
 
     const exists = units.some(
-      (u) => u.name.toLowerCase() === name.trim().toLowerCase()
+      (u) =>
+        u.name.toLowerCase() ===
+        name.trim().toLowerCase()
     );
 
     if (exists) {
@@ -40,6 +46,8 @@ export default function UnitManager({
     setMultiplier("");
   }
 
+  /* ================= DELETE ================= */
+
   function deleteUnit(unit) {
     if (isUnitUsed(unit.name)) {
       alert(
@@ -48,28 +56,38 @@ export default function UnitManager({
       return;
     }
 
-    if (window.confirm(`Delete unit "${unit.name}"?`)) {
+    if (window.confirm(`Delete "${unit.name}"?`)) {
       setUnits(units.filter((u) => u.id !== unit.id));
     }
   }
 
-  return (
-    <div>
-      <h3>Units</h3>
+  /* ================= FILTER ================= */
 
-      {/* ADD UNIT */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          marginBottom: 14,
-          flexWrap: "wrap",
-        }}
-      >
+  const filteredUnits = useMemo(() => {
+    return units
+      .filter((u) =>
+        u.name
+          .toLowerCase()
+          .includes(search.toLowerCase())
+      )
+      .sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
+  }, [units, search]);
+
+  /* ================= UI ================= */
+
+  return (
+    <div style={card}>
+      <h3 style={{ marginBottom: 16 }}>Units</h3>
+
+      {/* ADD */}
+      <div style={row}>
         <input
-          placeholder="Unit name (Piece, Kg, Dozen)"
+          placeholder="Unit name (Piece, Kg)"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          style={input}
         />
 
         <input
@@ -77,60 +95,136 @@ export default function UnitManager({
           min="1"
           placeholder="Multiplier"
           value={multiplier}
-          onChange={(e) => setMultiplier(e.target.value)}
-          style={{ width: 110 }}
+          onChange={(e) =>
+            setMultiplier(e.target.value)
+          }
+          style={{ ...input, width: 120 }}
         />
 
-        <button onClick={addUnit}>Add</button>
+        <button onClick={addUnit} style={addBtn}>
+          Add
+        </button>
       </div>
 
+      {/* SEARCH */}
+      <input
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search units..."
+        style={searchInput}
+      />
+
       {/* LIST */}
-      {units.length === 0 && (
-        <p style={{ color: "#6b7280" }}>No units created</p>
-      )}
+      {filteredUnits.length === 0 ? (
+        <div style={empty}>No units found</div>
+      ) : (
+        filteredUnits.map((u) => {
+          const used = isUnitUsed(u.name);
 
-      {units.map((u) => {
-        const used = isUnitUsed(u.name);
-
-        return (
-          <div key={u.id} style={row}>
-            <span>
-              {u.name} × {u.multiplier}
-              {used && (
-                <span
-                  style={{
-                    marginLeft: 6,
-                    fontSize: 11,
-                    color: "#dc2626",
-                  }}
-                >
-                  (used)
+          return (
+            <div key={u.id} style={listItem}>
+              <div>
+                <strong>{u.name}</strong>{" "}
+                <span style={{ fontSize: 13 }}>
+                  × {u.multiplier}
                 </span>
-              )}
-            </span>
 
-            <button
-              onClick={() => deleteUnit(u)}
-              disabled={used}
-              style={{
-                color: used ? "#9ca3af" : "#ef4444",
-                cursor: used ? "not-allowed" : "pointer",
-                background: "none",
-                border: "none",
-              }}
-            >
-              Delete
-            </button>
-          </div>
-        );
-      })}
+                {used && (
+                  <span style={usedBadge}>
+                    Used
+                  </span>
+                )}
+              </div>
+
+              <button
+                onClick={() => deleteUnit(u)}
+                disabled={used}
+                style={{
+                  ...deleteBtn,
+                  opacity: used ? 0.4 : 1,
+                  cursor: used
+                    ? "not-allowed"
+                    : "pointer",
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }
 
+/* ================= STYLES ================= */
+
+const card = {
+  background: "#fff",
+  padding: 16,
+  borderRadius: 14,
+  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+};
+
 const row = {
   display: "flex",
+  gap: 8,
+  marginBottom: 12,
+  flexWrap: "wrap",
+};
+
+const input = {
+  flex: 1,
+  padding: 12,
+  borderRadius: 10,
+  border: "1px solid #d1d5db",
+};
+
+const searchInput = {
+  width: "100%",
+  padding: 10,
+  borderRadius: 10,
+  border: "1px solid #d1d5db",
+  marginBottom: 12,
+};
+
+const listItem = {
+  display: "flex",
   justifyContent: "space-between",
-  padding: "8px 0",
+  alignItems: "center",
+  padding: "10px 0",
   borderBottom: "1px solid #e5e7eb",
+};
+
+const addBtn = {
+  padding: "12px 16px",
+  borderRadius: 10,
+  border: "none",
+  background: "#2563eb",
+  color: "#fff",
+  fontWeight: 600,
+};
+
+const deleteBtn = {
+  background: "#fee2e2",
+  color: "#b91c1c",
+  border: "none",
+  padding: "6px 12px",
+  borderRadius: 8,
+  fontWeight: 600,
+};
+
+const usedBadge = {
+  marginLeft: 8,
+  fontSize: 11,
+  padding: "2px 6px",
+  borderRadius: 999,
+  background: "#fee2e2",
+  color: "#b91c1c",
+};
+
+const empty = {
+  textAlign: "center",
+  padding: 20,
+  color: "#6b7280",
 };

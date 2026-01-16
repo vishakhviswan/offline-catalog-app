@@ -7,49 +7,46 @@ export default function AdminProductList({
   onEdit,
 }) {
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("");
-  const [sort, setSort] = useState("az");
+  const [categoryFilter, setCategoryFilter] = useState("");
 
   function getCategoryName(id) {
-    const cat = categories.find((c) => c.id === id);
-    return cat ? cat.name : "Unknown";
+    return categories.find((c) => c.id === id)?.name || "—";
   }
 
-  const filteredProducts = products
-    .filter((p) =>
-      p.name.toLowerCase().includes(search.toLowerCase())
-    )
-    .filter((p) =>
-      category ? p.categoryId === category : true
-    )
-    .sort((a, b) =>
-      sort === "az"
-        ? a.name.localeCompare(b.name)
-        : b.name.localeCompare(a.name)
-    );
+  function deleteProduct(id) {
+    if (!window.confirm("Delete this product?")) return;
+    setProducts(products.filter((p) => p.id !== id));
+  }
+
+  const filtered = products.filter((p) => {
+    const matchName = p.name
+      .toLowerCase()
+      .includes(search.toLowerCase());
+
+    const matchCategory = categoryFilter
+      ? p.categoryId === categoryFilter
+      : true;
+
+    return matchName && matchCategory;
+  });
 
   return (
     <div>
-      <h3>Product List</h3>
+      <h3 style={{ marginBottom: 12 }}>Product List</h3>
 
-      {/* 🔍 CONTROLS */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-          marginBottom: 12,
-        }}
-      >
+      {/* FILTERS */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         <input
           placeholder="Search product..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          style={input}
         />
 
         <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          style={select}
         >
           <option value="">All Categories</option>
           {categories.map((c) => (
@@ -58,56 +55,117 @@ export default function AdminProductList({
             </option>
           ))}
         </select>
-
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value)}
-        >
-          <option value="az">A – Z</option>
-          <option value="za">Z – A</option>
-        </select>
       </div>
 
-      {filteredProducts.length === 0 && (
-        <p style={{ color: "#6b7280" }}>
-          No matching products
-        </p>
-      )}
+      {/* LIST */}
+      {filtered.length === 0 ? (
+        <p>No products found</p>
+      ) : (
+        filtered.map((p) => (
+          <div key={p.id} style={row}>
+            {/* IMAGE */}
+            <div style={imageBox}>
+              {p.image ? (
+                <img
+                  src={p.image}
+                  alt={p.name}
+                  style={img}
+                />
+              ) : (
+                <span style={{ fontSize: 22 }}>📦</span>
+              )}
+            </div>
 
-      {filteredProducts.map((p) => (
-        <div
-          key={p.id}
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "8px 0",
-            borderBottom: "1px solid #e5e7eb",
-          }}
-        >
-          <div>
-            <strong>{p.name}</strong>
-            <div style={{ fontSize: 12, color: "#6b7280" }}>
-              Category: {getCategoryName(p.categoryId)} | ₹{p.price}
+            {/* INFO */}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600 }}>
+                {p.name}
+              </div>
+              <div style={sub}>
+                {getCategoryName(p.categoryId)} · ₹{p.price}
+              </div>
+            </div>
+
+            {/* ACTIONS */}
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                onClick={() => onEdit(p)}
+                style={editBtn}
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => deleteProduct(p.id)}
+                style={deleteBtn}
+              >
+                Delete
+              </button>
             </div>
           </div>
-
-          <div>
-            <button onClick={() => onEdit(p)}>Edit</button>
-            <button
-              onClick={() => {
-                if (window.confirm(`Delete "${p.name}"?`)) {
-                  setProducts(
-                    products.filter((x) => x.id !== p.id)
-                  );
-                }
-              }}
-              style={{ marginLeft: 6, color: "#ef4444" }}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }
+
+/* ================= STYLES ================= */
+
+const input = {
+  flex: 1,
+  padding: 10,
+  borderRadius: 10,
+  border: "1px solid #d1d5db",
+};
+
+const select = {
+  padding: 10,
+  borderRadius: 10,
+  border: "1px solid #d1d5db",
+};
+
+const row = {
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  padding: "10px 0",
+  borderBottom: "1px solid #e5e7eb",
+};
+
+const imageBox = {
+  width: 48,
+  height: 48,
+  borderRadius: 8,
+  background: "#f3f4f6",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  overflow: "hidden",
+};
+
+const img = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+};
+
+const sub = {
+  fontSize: 12,
+  color: "#6b7280",
+};
+
+const editBtn = {
+  padding: "6px 10px",
+  borderRadius: 8,
+  border: "none",
+  background: "#e5e7eb",
+  fontWeight: 600,
+};
+
+const deleteBtn = {
+  padding: "6px 10px",
+  borderRadius: 8,
+  border: "none",
+  background: "#fee2e2",
+  color: "#b91c1c",
+  fontWeight: 600,
+};
