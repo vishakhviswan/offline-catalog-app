@@ -9,18 +9,21 @@ export default function Catalog({
   increaseQty,
   decreaseQty,
   search,
+  showOutOfStock = false,
 }) {
-  /* ================= FILTERED PRODUCTS ================= */
+  /* ================= STOCK CHECK ================= */
+  const isOutOfStock = (p) =>
+    p.out_of_stock === true || p.availability === false || p.stock === 0;
 
+  /* ================= FILTER ================= */
   const filteredProducts = products
     .filter((p) =>
       selectedCategory === "all"
         ? true
-        : p.categoryId === selectedCategory
+        : (p.category_id || p.categoryId) === selectedCategory,
     )
-    .filter((p) =>
-      p.name.toLowerCase().includes(search.toLowerCase())
-    );
+    .filter((p) => p.name?.toLowerCase().includes(search.toLowerCase()))
+    .filter((p) => (showOutOfStock ? true : !isOutOfStock(p)));
 
   return (
     <div style={page}>
@@ -28,7 +31,6 @@ export default function Catalog({
       <h2 style={heading}>Product Categories</h2>
 
       <div style={categoryBar}>
-        {/* ALL OPTION */}
         <CategoryChip
           active={selectedCategory === "all"}
           onClick={() => setSelectedCategory("all")}
@@ -48,9 +50,7 @@ export default function Catalog({
       </div>
 
       {/* ================= PRODUCTS ================= */}
-      <h3 style={subHeading}>
-        Products ({filteredProducts.length})
-      </h3>
+      <h3 style={subHeading}>Products ({filteredProducts.length})</h3>
 
       {filteredProducts.length === 0 && (
         <p style={emptyTxt}>No products found</p>
@@ -58,30 +58,37 @@ export default function Catalog({
 
       <div style={grid}>
         {filteredProducts.map((p) => {
-          const cartItem = cart.find(
-            (c) => c.productId === p.id
-          );
+          const cartItem = cart.find((c) => c.productId === p.id);
 
-          const defaultUnit = p.units?.[0];
-          const displayPrice =
-            p.price * (defaultUnit?.multiplier || 1);
+          const defaultUnit =
+            p.units && p.units.length > 0
+              ? p.units[0]
+              : { name: "pcs", multiplier: 1 };
+
+          const displayPrice = p.price * defaultUnit.multiplier;
+
+          const productImage =
+            p.image || (p.images && p.images.length > 0 ? p.images[0] : null);
+
+          const out = isOutOfStock(p);
 
           return (
-            <div key={p.id} style={card}>
+            <div
+              key={p.id}
+              style={{
+                ...card,
+                opacity: out ? 0.55 : 1,
+              }}
+            >
               {/* IMAGE */}
-              <div
-                style={imageWrap}
-                onClick={() => setViewProduct(p)}
-              >
-                {p.image ? (
-                  <img
-                    src={p.image}
-                    alt={p.name}
-                    style={image}
-                  />
+              <div style={imageWrap} onClick={() => !out && setViewProduct(p)}>
+                {productImage ? (
+                  <img src={productImage} alt={p.name} style={image} />
                 ) : (
                   <span style={placeholder}>📦</span>
                 )}
+
+                {out && <div style={badge}>⏳ Restocking</div>}
               </div>
 
               {/* INFO */}
@@ -90,45 +97,29 @@ export default function Catalog({
 
                 <div style={price}>
                   ₹{displayPrice}
-                  <span style={unit}>
-                    / {defaultUnit?.name}
-                  </span>
+                  <span style={unit}> / {defaultUnit.name}</span>
                 </div>
-
-                {p.units?.length > 1 && (
-                  <div style={unitInfo}>
-                    {p.units.length} units available
-                  </div>
-                )}
               </div>
 
-              {/* CART ACTION */}
-              {!cartItem ? (
+              {/* CART */}
+              {!cartItem && !out ? (
                 <button
                   style={addBtn}
-                  onClick={() =>
-                    addToCart(p, defaultUnit)
-                  }
+                  onClick={() => addToCart(p, defaultUnit)}
                 >
                   ➕ Add
                 </button>
-              ) : (
+              ) : cartItem ? (
                 <div style={qtyRow}>
-                  <button
-                    style={qtyBtn}
-                    onClick={() => decreaseQty(p.id)}
-                  >
+                  <button style={qtyBtn} onClick={() => decreaseQty(p.id)}>
                     −
                   </button>
                   <strong>{cartItem.qty}</strong>
-                  <button
-                    style={qtyBtn}
-                    onClick={() => increaseQty(p.id)}
-                  >
+                  <button style={qtyBtn} onClick={() => increaseQty(p.id)}>
                     +
                   </button>
                 </div>
-              )}
+              ) : null}
             </div>
           );
         })}
@@ -137,16 +128,22 @@ export default function Catalog({
   );
 }
 
-/* ================= COMPONENTS ================= */
+/* ================= CATEGORY CHIP ================= */
 
 function CategoryChip({ active, children, onClick }) {
   return (
     <button
       onClick={onClick}
       style={{
-        ...chip,
+        padding: "10px 16px",
+        borderRadius: 999,
+        border: "none",
+        fontSize: 14,
+        cursor: "pointer",
         background: active ? "#2563eb" : "#ffffff",
         color: active ? "#ffffff" : "#111827",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+        whiteSpace: "nowrap",
       }}
     >
       {children}
@@ -181,20 +178,9 @@ const categoryBar = {
   paddingBottom: 10,
 };
 
-const chip = {
-  padding: "10px 16px",
-  borderRadius: 999,
-  border: "none",
-  fontSize: 14,
-  cursor: "pointer",
-  boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
-  whiteSpace: "nowrap",
-};
-
 const grid = {
   display: "grid",
-  gridTemplateColumns:
-    "repeat(auto-fill, minmax(170px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
   gap: 16,
   paddingBottom: 90,
 };
@@ -217,6 +203,7 @@ const imageWrap = {
   alignItems: "center",
   justifyContent: "center",
   cursor: "pointer",
+  position: "relative", // ✅ IMPORTANT
 };
 
 const image = {
@@ -245,11 +232,6 @@ const unit = {
   fontSize: 12,
   color: "#6b7280",
   marginLeft: 4,
-};
-
-const unitInfo = {
-  fontSize: 11,
-  color: "#6b7280",
 };
 
 const addBtn = {
@@ -282,4 +264,16 @@ const qtyBtn = {
 const emptyTxt = {
   color: "#6b7280",
   fontSize: 14,
+};
+
+const badge = {
+  position: "absolute",
+  top: 8,
+  left: 8,
+  background: "#f97316",
+  color: "#fff",
+  padding: "4px 8px",
+  borderRadius: 8,
+  fontSize: 11,
+  fontWeight: 700,
 };

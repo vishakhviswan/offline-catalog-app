@@ -1,67 +1,28 @@
 import { openDB } from "idb";
 
-export const dbPromise = openDB("catalog-db", 3, {
+export const dbPromise = openDB("catalog-db", 1, {
   upgrade(db) {
-
-    // ---------- CATEGORIES ----------
-    if (!db.objectStoreNames.contains("categories")) {
-      db.createObjectStore("categories");
-    }
-
-    // ---------- PRODUCTS ----------
-    if (!db.objectStoreNames.contains("products")) {
-      db.createObjectStore("products");
-    }
-
-    // ---------- ORDERS ----------
+    // ✅ ORDERS (important)
     if (!db.objectStoreNames.contains("orders")) {
       db.createObjectStore("orders", { keyPath: "id" });
     }
 
-    // ---------- CUSTOMERS ----------
-    if (!db.objectStoreNames.contains("customers")) {
-      db.createObjectStore("customers");
-    }
-
-    // ---------- UNITS ----------
-    if (!db.objectStoreNames.contains("units")) {
-      db.createObjectStore("units");
+    // ⚡ OPTIONAL: product cache (offline)
+    if (!db.objectStoreNames.contains("products_cache")) {
+      db.createObjectStore("products_cache");
     }
   },
 });
 
-/* ================= CATEGORIES ================= */
-
-export async function saveCategories(categories) {
-  const db = await dbPromise;
-  await db.put("categories", categories, "list");
-}
-
-export async function loadCategories() {
-  const db = await dbPromise;
-  return (await db.get("categories", "list")) || [];
-}
-
-/* ================= PRODUCTS ================= */
-
-export async function saveProducts(products) {
-  const db = await dbPromise;
-  await db.put("products", products, "list");
-}
-
-export async function loadProducts() {
-  const db = await dbPromise;
-  return (await db.get("products", "list")) || [];
-}
-
 /* ================= ORDERS ================= */
 
+// Mistake orders / local orders
 export async function saveOrders(orders) {
   const db = await dbPromise;
   const tx = db.transaction("orders", "readwrite");
   const store = tx.objectStore("orders");
 
-  await store.clear(); // ✅ important
+  await store.clear();
   for (const o of orders) {
     await store.put(o);
   }
@@ -74,25 +35,14 @@ export async function loadOrders() {
   return await db.getAll("orders");
 }
 
-// ---------- CUSTOMERS ----------
-export async function saveCustomers(customers) {
+/* ================= PRODUCTS CACHE (OPTIONAL) ================= */
+
+export async function saveProductsCache(products) {
   const db = await dbPromise;
-  await db.put("customers", customers, "list");
+  await db.put("products_cache", products, "list");
 }
 
-export async function loadCustomers() {
+export async function loadProductsCache() {
   const db = await dbPromise;
-  return (await db.get("customers", "list")) || [];
+  return (await db.get("products_cache", "list")) || [];
 }
-
-// ---------- UNITS ----------
-export async function saveUnits(units) {
-  const db = await dbPromise;
-  await db.put("units", units, "list");
-}
-
-export async function loadUnits() {
-  const db = await dbPromise;
-  return (await db.get("units", "list")) || [];
-}
-

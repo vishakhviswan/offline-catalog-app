@@ -4,475 +4,231 @@ import ProductView from "./pages/ProductView";
 import NavBar from "./components/NavBar";
 import CartSheet from "./components/CartSheet";
 import Orders from "./pages/Orders";
-import Admin from "./pages/Admin";
 
-
-import {
-  saveCategories,
-  loadCategories,
-  saveProducts,
-  loadProducts,
-  saveOrders,
-  loadOrders,
-  saveCustomers,
-  loadCustomers,
-  saveUnits,
-  loadUnits,
-} from "./db";
-
-const ADMIN_PIN = "1234";
+import { saveOrders, loadOrders } from "./db";
 
 function App() {
-  
-  const [mode, setMode] = useState("catalog");
-  const [pin, setPin] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
+  /* ================= CORE STATE ================= */
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
-  const [newCategory, setNewCategory] = useState("");
   const [products, setProducts] = useState([]);
-  const [productsLoaded, setProductsLoaded] = useState(false);
- const [viewProduct, setViewProduct] = useState(null);
- const [cart, setCart] = useState([]);
-const [cartLoaded, setCartLoaded] = useState(false);
-const [customerName, setCustomerName] = useState("");
-const [orders, setOrders] = useState([]);
-const [ordersLoaded, setOrdersLoaded] = useState(false);
-const [search, setSearch] = useState("");
-const [showCart, setShowCart] = useState(false);
-const [showOrders, setShowOrders] = useState(false);
-const [customers, setCustomers] = useState([]);
-const [customersLoaded, setCustomersLoaded] = useState(false);
 
-const [masterUnits, setMasterUnits] = useState([]);
-const [masterUnitsLoaded, setMasterUnitsLoaded] = useState(false);
+  const [viewProduct, setViewProduct] = useState(null);
 
+  const [cart, setCart] = useState([]);
+  const [cartLoaded, setCartLoaded] = useState(false);
 
+  const [customerName, setCustomerName] = useState("");
 
-function updateCartUnit(productId, unit) {
-  setCart(
-    cart.map((c) =>
-      c.productId === productId
-        ? {
-            ...c,
-            unitName: unit.name,
-            unitMultiplier: unit.multiplier,
-            total:
-              c.qty *
-              c.price *
-              unit.multiplier,
-          }
-        : c
-    )
-  );
-}
+  const [orders, setOrders] = useState([]);
+  const [ordersLoaded, setOrdersLoaded] = useState(false);
+  const [showOrders, setShowOrders] = useState(false);
 
+  const [search, setSearch] = useState("");
+  const [showCart, setShowCart] = useState(false);
+  const [showOutOfStock, setShowOutOfStock] = useState(false);
+  /* ================= CART HELPERS ================= */
 
-function handleCheckout() {
-  if (cart.length === 0) return;
+  function addToCart(product, unit) {
+    const safeUnit =
+      unit ||
+      (product.units?.length
+        ? product.units[0]
+        : { name: "pcs", multiplier: 1 });
 
-  let msg = `*MANGALYA AGENCIES*\n\n`;
-  msg += `Customer: ${customerName || "N/A"}\n\n`;
-
-  cart.forEach((c, i) => {
-    msg += `${i + 1}) ${c.name}\n`;
-    msg += `   ${c.qty} ${c.unitName} × ₹${c.price} = ₹${c.total}\n\n`;
-  });
-
-  const total = cart.reduce((s, i) => s + i.total, 0);
-  msg += `------------------\nTotal: ₹${total}`;
-
-  // 🔥 MOBILE SAFE
-  window.location.href =
-    `https://wa.me/?text=${encodeURIComponent(msg)}`;
-
-  // Save order
-  const newOrder = {
-    id: Date.now(),
-    customer: customerName || "Unknown",
-    date: new Date().toISOString(),
-    items: cart,
-    total,
-  };
-
-  setOrders(prev => [...prev, newOrder]);
-
-  // Clear cart
-  setCart([]);
-  setCustomerName("");
-  localStorage.removeItem("cart");
-  setShowCart(false);
-}
-
-//addToCart helpers
-function addToCart(product, unit = product.units[0]) {
-  const unitPrice = product.price * unit.multiplier;
-
-  setCart([
-    ...cart,
-    {
-      productId: product.id,
-      name: product.name,
-      price: product.price,          // base price
-      unitName: unit.name,
-      unitMultiplier: unit.multiplier,
-      qty: 1,
-      total: unitPrice,              // 🔥 calculated
-    },
-  ]);
-}
-
-function increaseQty(productId) {
-  setCart(
-    cart.map((c) =>
-      c.productId === productId
-        ? {
-            ...c,
-            qty: c.qty + 1,
-            total:
-              (c.qty + 1) *
-              c.price *
-              c.unitMultiplier,
-          }
-        : c
-    )
-  );
-}
-
-function decreaseQty(productId) {
-  setCart(
-    cart
-      .map((c) =>
-        c.productId === productId
-          ? {
-              ...c,
-              qty: c.qty - 1,
-              total:
-                (c.qty - 1) *
-                c.price *
-                c.unitMultiplier,
-            }
-          : c
-      )
-      .filter((c) => c.qty > 0)
-  );
-}
-
-function removeFromCart(id) {
-  setCart(cart.filter((c) => c.productId !== id));
-}
-
-
-const cartTotal = cart.reduce((sum, item) => sum + item.total, 0);
-
-
-
-function getCustomerOrders(name) {
-  if (!name) return [];
-
-  const key = name.trim().toLowerCase();
-
-  return orders.filter(o =>
-    o.customer &&
-    o.customer.toLowerCase().includes(key)
-  );
-}
-
-
-// generateWhatsAppMessage
- function generateWhatsAppMessage() {
-  let msg = `*MANGALYA AGENCIES*\n`;
-  msg += `Order Summary\n\n`;
-  msg += `Customer: ${customerName || "N/A"}\n\n`;
-
-  cart.forEach((c, i) => {
-    msg += `${i + 1}) ${c.name}\n`;
-    msg += `   ${c.qty} × ₹${c.price} = ₹${c.total}\n\n`;
-  });
-
-  const grandTotal = cart.reduce((s, i) => s + i.total, 0);
-
-  msg += `------------------\n`;
-  msg += `Total Amount: ₹${grandTotal}`;
-
-  return msg;
-}
- 
-
-
-useEffect(() => {
-  loadUnits().then((data) => {
-    setMasterUnits(data || []);
-    setMasterUnitsLoaded(true);
-  });
-}, []);
-
-useEffect(() => {
-  if (!masterUnitsLoaded) return;
-  saveUnits(masterUnits);
-}, [masterUnits, masterUnitsLoaded]);
-
-useEffect(() => {
-  loadCustomers().then((data) => {
-    setCustomers(data || []);
-    setCustomersLoaded(true);
-  });
-}, []);
-
-
-useEffect(() => {
-  if (!customersLoaded) return;
-  saveCustomers(customers);
-}, [customers, customersLoaded]);
-
-
-
-//orders
-useEffect(() => {
-  loadOrders().then(data => {
-    setOrders(data || []);
-    setOrdersLoaded(true); // 🔑 VERY IMPORTANT
-  });
-}, []);
-
-useEffect(() => {
-  if (!ordersLoaded) return; // 🔒 block early overwrite
-  saveOrders(orders);
-}, [orders, ordersLoaded]);
-
-//cart
-useEffect(() => {
-  const savedCart = localStorage.getItem("cart");
-  if (savedCart) {
-    try {
-      setCart(JSON.parse(savedCart));
-    } catch (e) {
-      console.error("Cart parse error", e);
-    }
+    setCart([
+      ...cart,
+      {
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        unitName: safeUnit.name,
+        unitMultiplier: safeUnit.multiplier,
+        qty: 1,
+      },
+    ]);
   }
-  setCartLoaded(true);
-}, []);
 
-useEffect(() => {
-  if (!cartLoaded) return;   // 🔒 BLOCK early save
-  localStorage.setItem("cart", JSON.stringify(cart));
-}, [cart, cartLoaded]);
+  function increaseQty(productId) {
+    setCart(
+      cart.map((c) =>
+        c.productId === productId ? { ...c, qty: c.qty + 1 } : c,
+      ),
+    );
+  }
 
+  function decreaseQty(productId) {
+    setCart(
+      cart
+        .map((c) => (c.productId === productId ? { ...c, qty: c.qty - 1 } : c))
+        .filter((c) => c.qty > 0),
+    );
+  }
 
-  // Load categories
+  function removeFromCart(productId) {
+    setCart(cart.filter((c) => c.productId !== productId));
+  }
+
+  const cartTotal = cart.reduce(
+    (s, i) => s + i.qty * i.price * i.unitMultiplier,
+    0,
+  );
+
+  /* ================= CHECKOUT ================= */
+
+  function handleCheckout() {
+    if (!cart.length) return;
+
+    let msg = `*MANGALYA AGENCIES*\n\n`;
+    msg += `Customer: ${customerName || "N/A"}\n\n`;
+
+    cart.forEach((c, i) => {
+      msg += `${i + 1}) ${c.name}\n`;
+      msg += `   ${c.qty} ${c.unitName} × ₹${c.price} = ₹${
+        c.qty * c.price * c.unitMultiplier
+      }\n\n`;
+    });
+
+    msg += `------------------\nTotal: ₹${cartTotal}`;
+
+    window.location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+
+    const newOrder = {
+      id: Date.now(),
+      customer: customerName || "Unknown",
+      date: new Date().toISOString(),
+      items: cart,
+      total: cartTotal,
+    };
+
+    setOrders((prev) => [...prev, newOrder]);
+
+    setCart([]);
+    setCustomerName("");
+    localStorage.removeItem("cart");
+    setShowCart(false);
+  }
+
+  /* ================= LOADERS ================= */
+
+  // Orders (IndexedDB – mistakes allowed)
   useEffect(() => {
-    loadCategories().then((data) => {
-      if (data.length === 0) {
-        
-        const defaults = [
-  { id: "c1", name: "Brooms" },
-  { id: "c2", name: "Mops" },
-  { id: "c3", name: "Buckets" },
-  { id: "c4", name: "Containers" },
-];
-        setCategories(defaults);
-        saveCategories(defaults);
-      } else {
-        setCategories(data);
-      }
+    loadOrders().then((data) => {
+      setOrders(data || []);
+      setOrdersLoaded(true);
     });
   }, []);
-  // selectedCategory
+
   useEffect(() => {
-  if (categories.length > 0 && !selectedCategory) {
-    setSelectedCategory(categories[0].id);
-  }
-}, [categories, selectedCategory]);
+    if (!ordersLoaded) return;
+    saveOrders(orders);
+  }, [orders, ordersLoaded]);
 
-  // Save categories
+  // Cart (localStorage)
   useEffect(() => {
-    if (categories.length) saveCategories(categories);
-  }, [categories]);
+    const saved = localStorage.getItem("cart");
+    if (saved) {
+      try {
+        setCart(JSON.parse(saved));
+      } catch {}
+    }
+    setCartLoaded(true);
+  }, []);
 
-  // Load products
+  useEffect(() => {
+    if (!cartLoaded) return;
+    localStorage.setItem("cart", JSON.stringify(cart));
+  }, [cart, cartLoaded]);
 
-useEffect(() => {
-  loadProducts().then((data) => {
-    setProducts(data || []);
-    setProductsLoaded(true);
-  });
-}, []);
-  // Save products
-useEffect(() => {
-  if (productsLoaded) {
-    saveProducts(products);
-  }
-}, [products, productsLoaded]);
+  // Categories (API)
+  useEffect(() => {
+    fetch(
+      "https://offline-catalog-backend-production.up.railway.app/api/categories",
+    )
+      .then((r) => r.json())
+      .then((data) => setCategories(data || []))
+      .catch(() => setCategories([]));
+  }, []);
 
-if (mode === "adminLogin") {
-  return (
-    <div
-      style={{
-        padding: 20,
-        maxWidth: 400,
-        margin: "60px auto",
-        background: "#fff",
-        borderRadius: 12,
-        boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
-      }}
-    >
-      <h2 style={{ marginBottom: 16 }}>Admin Login</h2>
+  // Auto select first category
+  useEffect(() => {
+    if (categories.length && !selectedCategory) {
+      setSelectedCategory(categories[0].id);
+    }
+  }, [categories, selectedCategory]);
 
-      <input
-        type="password"
-        placeholder="Enter Admin PIN"
-        value={pin}
-        onChange={(e) => setPin(e.target.value)}
-        style={{
-          width: "100%",
-          padding: 12,
-          borderRadius: 8,
-          border: "1px solid #d1d5db",
-          marginBottom: 12,
-        }}
+  // Products (API)
+  useEffect(() => {
+    fetch(
+      "https://offline-catalog-backend-production.up.railway.app/api/products",
+    )
+      .then((r) => r.json())
+      .then((data) => setProducts(data || []))
+      .catch(() => setProducts([]));
+  }, []);
+
+  /* ================= ROUTING ================= */
+
+  if (viewProduct) {
+    return (
+      <ProductView
+        product={viewProduct}
+        products={products}
+        cart={cart}
+        addToCart={addToCart}
+        increaseQty={increaseQty}
+        decreaseQty={decreaseQty}
+        onBack={() => setViewProduct(null)}
+        onChangeProduct={(p) => setViewProduct(p)}
       />
+    );
+  }
 
-      <button
-        style={{
-          width: "100%",
-          padding: 12,
-          background: "#2563eb",
-          color: "#fff",
-          border: "none",
-          borderRadius: 8,
-          fontWeight: 600,
-        }}
-        onClick={() => {
-          if (pin === ADMIN_PIN) {
-            setIsAdmin(true);
-            setMode("admin");
-            setPin("");
-          } else {
-            alert("Wrong PIN");
-          }
-        }}
-      >
-        Login
-      </button>
+  if (showOrders) {
+    return <Orders orders={orders} onBack={() => setShowOrders(false)} />;
+  }
 
-      <button
-        onClick={() => setMode("catalog")}
-        style={{
-          marginTop: 10,
-          width: "100%",
-          padding: 10,
-          background: "#e5e7eb",
-          border: "none",
-          borderRadius: 8,
-        }}
-      >
-        Back to Catalog
-      </button>
-    </div>
-  );
-}
+  /* ================= CATALOG ================= */
 
-  // 🔐 Admin Login
-  if (mode === "admin" && isAdmin) {
-  return (
-    <Admin
-  categories={categories}
-  setCategories={setCategories}
-  products={products}
-  setProducts={setProducts}
-  orders={orders}
-  customers={customers}
-  setCustomers={setCustomers}
-  units={masterUnits}
-  setUnits={setMasterUnits}
-  onLogout={() => {
-    setIsAdmin(false);
-    setMode("catalog");
-  }}
-/>
-  );
-}
-
-// 👀 Product View (NEW ARCHITECTURE)
-if (viewProduct) {
-  return (
-<ProductView
-updateCartUnit={updateCartUnit}
-  product={viewProduct}
-  products={products}
-  cart={cart}
-  addToCart={addToCart}
-  increaseQty={increaseQty}
-  decreaseQty={decreaseQty}
-  onBack={() => setViewProduct(null)}
-  onChangeProduct={(p) => setViewProduct(p)}
-/>
-
-  );
-}
-
-if (showOrders) {
-  return (
-    <Orders
-      orders={orders}
-      onBack={() => setShowOrders(false)}
-    />
-  );
-}
-
-//
-if (mode === "catalog") {
   return (
     <>
-    <NavBar
-  search={search}
-  setSearch={setSearch}
-  cartCount={cart.length}
-  cartTotal={cartTotal}
-  customerName={customerName}
-  setCustomerName={setCustomerName}
-  onCartClick={() => setShowCart(true)}
-  onOrdersClick={() => setShowOrders(true)}
-  onAdminClick={() => setMode("adminLogin")}
-  customers={customers}         
-  setCustomers={setCustomers}
-  products={products}           
-  setViewProduct={setViewProduct}
-/>
-    <Catalog
-  categories={categories}
-  selectedCategory={selectedCategory}
-  setSelectedCategory={setSelectedCategory}
-  products={products}
-  setViewProduct={setViewProduct}
-  cart={cart}
-  addToCart={addToCart}
-  increaseQty={increaseQty}
-  decreaseQty={decreaseQty}
-  search={search}
-/>
+      <NavBar
+        search={search}
+        setSearch={setSearch}
+        cartCount={cart.length}
+        cartTotal={cartTotal}
+        customerName={customerName}
+        setCustomerName={setCustomerName}
+        onCartClick={() => setShowCart(true)}
+        onOrdersClick={() => setShowOrders(true)}
+      />
 
-{showCart && (
-  <CartSheet
-    cart={cart}
-    increaseQty={increaseQty}
-    decreaseQty={decreaseQty}
-    removeFromCart={removeFromCart}
-    onClose={() => setShowCart(false)}
-    onCheckout={handleCheckout}
-  />
-)}
+      <Catalog
+        categories={categories}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        products={products}
+        setViewProduct={setViewProduct}
+        cart={cart}
+        addToCart={addToCart}
+        increaseQty={increaseQty}
+        decreaseQty={decreaseQty}
+        search={search}
+        showOutOfStock={showOutOfStock}
+      />
 
+      {showCart && (
+        <CartSheet
+          cart={cart}
+          increaseQty={increaseQty}
+          decreaseQty={decreaseQty}
+          removeFromCart={removeFromCart}
+          onClose={() => setShowCart(false)}
+          onCheckout={handleCheckout}
+        />
+      )}
     </>
   );
-  
-}
-// ✅ SAFETY FALLBACK (VERY IMPORTANT)
-return (
-  <div style={{ padding: 20 }}>
-    <h2>Loading app...</h2>
-  </div>
-);
 }
 
 export default App;
