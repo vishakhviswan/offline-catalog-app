@@ -18,9 +18,8 @@ export default function NavBar({
   const suggestions =
     search.length > 0
       ? products
-          .filter((p) =>
-            p.name.toLowerCase().includes(search.toLowerCase())
-          )
+          .filter((p) => p && p.name)
+          .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
           .slice(0, 6)
       : [];
 
@@ -30,12 +29,8 @@ export default function NavBar({
       <div style={topRow}>
         {/* BRAND */}
         <div>
-          <div style={brand}>
-            🧹 Mangalya Agencies
-          </div>
-          <div style={subtitle}>
-            Wholesale Sales Catalog
-          </div>
+          <div style={brand}>🧹 Mangalya Agencies</div>
+          <div style={subtitle}>Wholesale Sales Catalog</div>
         </div>
 
         {/* ACTIONS */}
@@ -46,12 +41,8 @@ export default function NavBar({
 
           <button onClick={onCartClick} style={cartBtn}>
             🛒
-            {cartCount > 0 && (
-              <span style={cartBadge}>{cartCount}</span>
-            )}
-            <span style={cartTotalTxt}>
-              ₹{cartTotal}
-            </span>
+            {cartCount > 0 && <span style={cartBadge}>{cartCount}</span>}
+            <span style={cartTotalTxt}>₹{cartTotal}</span>
           </button>
 
           <button onClick={onAdminClick} style={adminBtn}>
@@ -60,46 +51,45 @@ export default function NavBar({
         </div>
       </div>
 
-      {/* ================= SEARCH ================= */}
-      <div style={{ position: "relative", marginTop: 10 }}>
-        <input
-          placeholder="🔍 Search products..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={searchInput}
-        />
+      {/* ================= SEARCH + CUSTOMER ROW ================= */}
+      <div style={searchRow}>
+        <div style={searchCol}>
+          <input
+            placeholder="🔍 Search products..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={searchInput}
+          />
 
-        {suggestions.length > 0 && (
-          <div style={suggestBox}>
-            {suggestions.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => {
-                  setViewProduct(p);
-                  setSearch("");
-                }}
-                style={suggestItem}
-              >
-                <div style={{ fontWeight: 600 }}>
-                  {p.name}
+          {suggestions.length > 0 && (
+            <div style={suggestBox}>
+              {suggestions.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => {
+                    setViewProduct(p);
+                    setSearch("");
+                  }}
+                  style={suggestItem}
+                >
+                  <div style={{ fontWeight: 600 }}>{p.name}</div>
+                  <div style={{ fontSize: 12, color: "#6b7280" }}>
+                    ₹{p.price}
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, color: "#6b7280" }}>
-                  ₹{p.price}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-      {/* ================= CUSTOMER ================= */}
-      <div style={{ marginTop: 12 }}>
-        <CustomerSelect
-          customers={customers}
-          setCustomers={setCustomers}
-          customerName={customerName}
-          setCustomerName={setCustomerName}
-        />
+        <div style={customerCol}>
+          <CustomerSelect
+            customers={customers}
+            setCustomers={setCustomers}
+            customerName={customerName}
+            setCustomerName={setCustomerName}
+          />
+        </div>
       </div>
     </div>
   );
@@ -214,4 +204,18 @@ const suggestItem = {
   padding: "10px 12px",
   cursor: "pointer",
   borderBottom: "1px solid #f3f4f6",
+};
+const searchRow = {
+  display: "flex",
+  gap: 8,
+  marginTop: 12,
+};
+
+const searchCol = {
+  flex: 3,
+  position: "relative",
+};
+
+const customerCol = {
+  flex: 1,
 };

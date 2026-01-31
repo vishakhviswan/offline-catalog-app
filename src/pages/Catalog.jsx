@@ -1,44 +1,159 @@
+import { useState, useMemo } from "react";
+import CategorySelectModal from "../components/CategorySelectModal";
+import ProductCard from "../components/ProductCard";
+
 export default function Catalog({
-  categories,
+  categories = [],
   selectedCategory,
   setSelectedCategory,
-  products,
+  products = [],
   setViewProduct,
-  cart,
+  cart = [],
   addToCart,
   increaseQty,
   decreaseQty,
-  search,
-  showOutOfStock = false,
+  search = "",
+  orders = [],
+  customerName = "",
 }) {
-  /* ================= STOCK CHECK ================= */
-  const isOutOfStock = (p) =>
-    p.out_of_stock === true || p.availability === false || p.stock === 0;
+  const [catOpen, setCatOpen] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+
+  /* ================= SAFE PRODUCTS ================= */
+  const safeProducts = useMemo(() => {
+    return Array.isArray(products)
+      ? products.filter(
+          (p) =>
+            p &&
+            typeof p === "object" &&
+            typeof p.name === "string" &&
+            typeof p.price === "number",
+        )
+      : [];
+  }, [products]);
+
+  /* ================= CUSTOMER PREVIOUS PRODUCTS ================= */
+  const customerProducts = useMemo(() => {
+    if (!customerName || !orders.length) return [];
+
+    const map = new Map();
+
+    orders
+      .filter((o) => o.customer_name === customerName)
+      .forEach((order) => {
+        (order.order_items || []).forEach((it) => {
+          const prod = safeProducts.find((p) => p.id === it.product_id);
+          if (prod && !map.has(prod.id)) {
+            map.set(prod.id, prod);
+          }
+        });
+      });
+
+    return Array.from(map.values());
+  }, [orders, customerName, safeProducts]);
+
+  /* ================= MOST SELLING (FRONTEND ANALYTICS) ================= */
+  const mostSellingProducts = useMemo(() => {
+    if (!orders.length) return [];
+
+    const count = {};
+
+    orders.forEach((o) => {
+      (o.order_items || []).forEach((it) => {
+        count[it.product_id] =
+          (count[it.product_id] || 0) + Number(it.qty || 0);
+      });
+    });
+
+    return safeProducts
+      .map((p) => ({
+        ...p,
+        sold_qty: count[p.id] || 0,
+      }))
+      .filter((p) => p.sold_qty > 0)
+      .sort((a, b) => b.sold_qty - a.sold_qty)
+      .slice(0, 8);
+  }, [orders, safeProducts]);
 
   /* ================= FILTER ================= */
-  const filteredProducts = products
-    .filter((p) =>
-      selectedCategory === "all"
-        ? true
-        : (p.category_id || p.categoryId) === selectedCategory,
-    )
-    .filter((p) => p.name?.toLowerCase().includes(search.toLowerCase()))
-    .filter((p) => (showOutOfStock ? true : !isOutOfStock(p)));
+  const filteredProducts = useMemo(() => {
+    const q = search?.toLowerCase() || "";
+    return safeProducts
+      .filter((p) =>
+        selectedCategory === "all"
+          ? true
+          : (p.category_id || p.categoryId) === selectedCategory,
+      )
+      .filter((p) => p.name.toLowerCase().includes(q));
+  }, [safeProducts, selectedCategory, search]);
+
+  const getSelectedCategoryName = () => {
+    if (selectedCategory === "all") return "All Categories";
+    const cat = categories.find((c) => c.id === selectedCategory);
+    return cat?.name || "All Categories";
+  };
+
+  const isOutOfStock = (p) =>
+    Number(p.stock || 0) === 0 || p.availability === false;
+
+  const findCartItem = (id) => cart.find((c) => c.productId === id);
 
   return (
     <div style={page}>
-      {/* ================= CATEGORIES ================= */}
+      {/* SEARCH BAR */}
+      <div style={{ marginBottom: 12 }}>
+        {!showSearch ? (
+          <button
+            onClick={() => setShowSearch(true)}
+            style={{
+              padding: 8,
+              borderRadius: 8,
+              border: "1px solid #e5e7eb",
+              background: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            🔍 Search products
+          </button>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              autoFocus
+              placeholder="Search product name…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                flex: 1,
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: "1px solid #d1d5db",
+              }}
+            />
+            <button
+              onClick={() => setShowSearch(false)}
+              style={{
+                padding: "0 12px",
+                borderRadius: 10,
+                border: "none",
+                background: "#ef4444",
+                color: "#fff",
+                fontWeight: 700,
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+      </div>
       <h2 style={heading}>Product Categories</h2>
 
+      {/* CATEGORY BAR */}
       <div style={categoryBar}>
-        <CategoryChip
-          active={selectedCategory === "all"}
-          onClick={() => setSelectedCategory("all")}
-        >
-          🌈 All
-        </CategoryChip>
+        <button style={allBtn} onClick={() => setCatOpen(true)}>
+          📂 {getSelectedCategoryName()}
+        </button>
 
-        {categories.map((c) => (
+        {categories.slice(0, 6).map((c) => (
           <CategoryChip
             key={c.id}
             active={selectedCategory === c.id}
@@ -49,7 +164,56 @@ export default function Catalog({
         ))}
       </div>
 
-      {/* ================= PRODUCTS ================= */}
+      {/* ================= CUSTOMER PREVIOUS ================= */}
+      {customerName && customerProducts.length > 0 && (
+        <>
+          <h3 style={rowTitle}>
+            🔁 Previously ordered by <b>{customerName}</b>
+          </h3>
+
+          <div style={horizontalRow}>
+            {customerProducts.map((p) => (
+              <div key={p.id} style={{ minWidth: 160 }}>
+                <ProductCard
+                  product={p}
+                  cartItem={findCartItem(p.id)}
+                  out={isOutOfStock(p)}
+                  onView={setViewProduct}
+                  onAdd={addToCart}
+                  onInc={increaseQty}
+                  onDec={decreaseQty}
+                />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ================= MOST SELLING ================= */}
+      {mostSellingProducts.length > 0 && (
+        <>
+          <h3 style={sectionTitle}>🔥 Most Selling</h3>
+
+          <div style={horizontalRow}>
+            {mostSellingProducts.map((p) => (
+              <div key={p.id} style={{ minWidth: 160 }}>
+                <ProductCard
+                  product={p}
+                  compact
+                  cartItem={findCartItem(p.id)}
+                  out={isOutOfStock(p)}
+                  onView={setViewProduct}
+                  onAdd={addToCart}
+                  onInc={increaseQty}
+                  onDec={decreaseQty}
+                />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ================= GRID ================= */}
       <h3 style={subHeading}>Products ({filteredProducts.length})</h3>
 
       {filteredProducts.length === 0 && (
@@ -57,78 +221,36 @@ export default function Catalog({
       )}
 
       <div style={grid}>
-        {filteredProducts.map((p) => {
-          const cartItem = cart.find((c) => c.productId === p.id);
-
-          const defaultUnit =
-            p.units && p.units.length > 0
-              ? p.units[0]
-              : { name: "pcs", multiplier: 1 };
-
-          const displayPrice = p.price * defaultUnit.multiplier;
-
-          const productImage =
-            p.image || (p.images && p.images.length > 0 ? p.images[0] : null);
-
-          const out = isOutOfStock(p);
-
-          return (
-            <div
-              key={p.id}
-              style={{
-                ...card,
-                opacity: out ? 0.55 : 1,
-              }}
-            >
-              {/* IMAGE */}
-              <div style={imageWrap} onClick={() => !out && setViewProduct(p)}>
-                {productImage ? (
-                  <img src={productImage} alt={p.name} style={image} />
-                ) : (
-                  <span style={placeholder}>📦</span>
-                )}
-
-                {out && <div style={badge}>⏳ Restocking</div>}
-              </div>
-
-              {/* INFO */}
-              <div style={{ flex: 1 }}>
-                <div style={name}>{p.name}</div>
-
-                <div style={price}>
-                  ₹{displayPrice}
-                  <span style={unit}> / {defaultUnit.name}</span>
-                </div>
-              </div>
-
-              {/* CART */}
-              {!cartItem && !out ? (
-                <button
-                  style={addBtn}
-                  onClick={() => addToCart(p, defaultUnit)}
-                >
-                  ➕ Add
-                </button>
-              ) : cartItem ? (
-                <div style={qtyRow}>
-                  <button style={qtyBtn} onClick={() => decreaseQty(p.id)}>
-                    −
-                  </button>
-                  <strong>{cartItem.qty}</strong>
-                  <button style={qtyBtn} onClick={() => increaseQty(p.id)}>
-                    +
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
+        {filteredProducts.map((p) => (
+          <ProductCard
+            key={p.id}
+            product={p}
+            cartItem={findCartItem(p.id)}
+            out={isOutOfStock(p)}
+            onView={setViewProduct}
+            onAdd={addToCart}
+            onInc={increaseQty}
+            onDec={decreaseQty}
+          />
+        ))}
       </div>
+
+      {/* CATEGORY MODAL */}
+      <CategorySelectModal
+        open={catOpen}
+        onClose={() => setCatOpen(false)}
+        categories={categories}
+        selected={selectedCategory}
+        onSelect={(id) => {
+          setSelectedCategory(id);
+          setCatOpen(false);
+        }}
+      />
     </div>
   );
 }
 
-/* ================= CATEGORY CHIP ================= */
+/* ================= CHIP ================= */
 
 function CategoryChip({ active, children, onClick }) {
   return (
@@ -140,8 +262,8 @@ function CategoryChip({ active, children, onClick }) {
         border: "none",
         fontSize: 14,
         cursor: "pointer",
-        background: active ? "#2563eb" : "#ffffff",
-        color: active ? "#ffffff" : "#111827",
+        background: active ? "#2563eb" : "#fff",
+        color: active ? "#fff" : "#111827",
         boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
         whiteSpace: "nowrap",
       }}
@@ -153,127 +275,35 @@ function CategoryChip({ active, children, onClick }) {
 
 /* ================= STYLES ================= */
 
-const page = {
-  padding: 16,
-  maxWidth: 1200,
-  margin: "0 auto",
-};
-
-const heading = {
-  marginBottom: 8,
-  fontSize: 20,
-  fontWeight: 800,
-};
-
-const subHeading = {
-  margin: "14px 0",
-  fontSize: 16,
-  fontWeight: 700,
-};
-
+const page = { padding: 16, maxWidth: 1200, margin: "0 auto" };
+const heading = { marginBottom: 8, fontSize: 20, fontWeight: 800 };
+const subHeading = { margin: "14px 0", fontSize: 16, fontWeight: 700 };
 const categoryBar = {
   display: "flex",
   gap: 8,
   overflowX: "auto",
   paddingBottom: 10,
 };
-
 const grid = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))",
   gap: 16,
   paddingBottom: 90,
 };
-
-const card = {
-  background: "#ffffff",
-  borderRadius: 16,
-  padding: 12,
-  boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
-  display: "flex",
-  flexDirection: "column",
-  gap: 8,
-};
-
-const imageWrap = {
-  height: 130,
-  background: "#f3f4f6",
-  borderRadius: 12,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  position: "relative", // ✅ IMPORTANT
-};
-
-const image = {
-  width: "100%",
-  height: "100%",
-  objectFit: "contain",
-};
-
-const placeholder = {
-  fontSize: 30,
-  color: "#9ca3af",
-};
-
-const name = {
-  fontSize: 14,
-  fontWeight: 700,
-};
-
-const price = {
-  fontSize: 15,
-  fontWeight: 800,
-  color: "#16a34a",
-};
-
-const unit = {
-  fontSize: 12,
-  color: "#6b7280",
-  marginLeft: 4,
-};
-
-const addBtn = {
-  marginTop: 6,
-  padding: 10,
-  borderRadius: 10,
+const emptyTxt = { color: "#6b7280", fontSize: 14 };
+const allBtn = {
+  padding: "10px 16px",
+  borderRadius: 999,
   border: "none",
-  background: "#2563eb",
-  color: "#ffffff",
-  fontWeight: 700,
-  cursor: "pointer",
-};
-
-const qtyRow = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-};
-
-const qtyBtn = {
-  width: 36,
-  height: 36,
-  borderRadius: "50%",
-  border: "none",
-  background: "#e5e7eb",
-  fontSize: 18,
-  fontWeight: 700,
-};
-
-const emptyTxt = {
-  color: "#6b7280",
-  fontSize: 14,
-};
-
-const badge = {
-  position: "absolute",
-  top: 8,
-  left: 8,
-  background: "#f97316",
+  background: "#111827",
   color: "#fff",
-  padding: "4px 8px",
-  borderRadius: 8,
-  fontSize: 11,
   fontWeight: 700,
+};
+const sectionTitle = { margin: "18px 0 10px", fontSize: 16, fontWeight: 800 };
+const rowTitle = { margin: "16px 0 8px", fontSize: 16, fontWeight: 800 };
+const horizontalRow = {
+  display: "flex",
+  gap: 12,
+  overflowX: "auto",
+  paddingBottom: 12,
 };

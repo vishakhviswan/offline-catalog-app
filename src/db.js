@@ -1,43 +1,25 @@
 import { openDB } from "idb";
 
-export const dbPromise = openDB("catalog-db", 1, {
-  upgrade(db) {
-    // ✅ ORDERS (important)
-    if (!db.objectStoreNames.contains("orders")) {
-      db.createObjectStore("orders", { keyPath: "id" });
-    }
+/**
+ * IMPORTANT
+ * - Version MUST increase if structure changes
+ * - Orders are NOT stored locally anymore
+ */
+export const dbPromise = openDB("catalog-db", 5, {
+  upgrade(db, oldVersion) {
+    console.log("Upgrading DB from version", oldVersion);
 
-    // ⚡ OPTIONAL: product cache (offline)
+    /* ================= PRODUCTS CACHE ================= */
     if (!db.objectStoreNames.contains("products_cache")) {
       db.createObjectStore("products_cache");
     }
   },
 });
 
-/* ================= ORDERS ================= */
+/* ================= PRODUCTS CACHE ================= */
+/* (Optional – offline / speed optimization) */
 
-// Mistake orders / local orders
-export async function saveOrders(orders) {
-  const db = await dbPromise;
-  const tx = db.transaction("orders", "readwrite");
-  const store = tx.objectStore("orders");
-
-  await store.clear();
-  for (const o of orders) {
-    await store.put(o);
-  }
-
-  await tx.done;
-}
-
-export async function loadOrders() {
-  const db = await dbPromise;
-  return await db.getAll("orders");
-}
-
-/* ================= PRODUCTS CACHE (OPTIONAL) ================= */
-
-export async function saveProductsCache(products) {
+export async function saveProductsCache(products = []) {
   const db = await dbPromise;
   await db.put("products_cache", products, "list");
 }

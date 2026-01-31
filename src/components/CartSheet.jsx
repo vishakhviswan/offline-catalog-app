@@ -1,12 +1,15 @@
 export default function CartSheet({
   cart,
-  increaseQty,
-  decreaseQty,
   removeFromCart,
+  updateCartItem,
   onClose,
   onCheckout,
+  customerName,
 }) {
-  const total = cart.reduce((s, i) => s + i.total, 0);
+  const total = cart.reduce(
+    (s, i) => s + i.qty * i.price * i.unitMultiplier,
+    0,
+  );
 
   return (
     <>
@@ -16,7 +19,7 @@ export default function CartSheet({
         style={{
           position: "fixed",
           inset: 0,
-          background: "rgba(0,0,0,0.4)",
+          background: "rgba(0,0,0,0.45)",
           zIndex: 40,
         }}
       />
@@ -24,97 +27,79 @@ export default function CartSheet({
       {/* Sheet */}
       <div
         style={{
-    position: "fixed",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "85vh",
-    background: "#fff",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    boxShadow: "0 -4px 20px rgba(0,0,0,0.15)",
-    zIndex: 9999,      // 🔥 VERY IMPORTANT
-    display: "flex",
-    flexDirection: "column",
+          position: "fixed",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: "85vh",
+          background: "#f9fafb",
+          borderTopLeftRadius: 18,
+          borderTopRightRadius: 18,
+          zIndex: 50,
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        {/* Handle */}
-        <div
-          style={{
-            width: 40,
-            height: 4,
-            background: "#d1d5db",
-            borderRadius: 999,
-            margin: "0 auto 12px",
-          }}
-        />
-
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 10,
-          }}
-        >
-          <h3 style={{ margin: 0 }}>Cart</h3>
-          <button onClick={onClose}>✕</button>
+        <div style={header}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <h3 style={{ margin: 0 }}>🛒 Cart</h3>
+            <button onClick={onClose}>✕</button>
+          </div>
+          <div style={customerTxt}>
+            👤 {customerName || "No customer selected"}
+          </div>
         </div>
 
         {/* Items */}
-        <div style={{ flex: 1, overflowY: "auto" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
           {cart.length === 0 && (
-            <p>No items in cart</p>
+            <p style={{ color: "#6b7280" }}>No items in cart</p>
           )}
 
           {cart.map((c) => (
-            <div
-              key={c.productId}
-              style={{
-                borderBottom: "1px solid #e5e7eb",
-                padding: "10px 0",
-              }}
-            >
-              <strong>{c.name}</strong>
+            <div key={c.productId} style={card}>
+              {/* Product name */}
+              <div style={{ fontWeight: 600, marginBottom: 6 }}>{c.name}</div>
 
-              <div style={{ fontSize: 14, margin: "6px 0" }}>
-                ₹{c.price} × {c.qty}
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
-                <button
-                  onClick={() => decreaseQty(c.productId)}
-                >
-                  −
-                </button>
-
-                <strong>{c.qty}</strong>
-
-                <button
-                  onClick={() => increaseQty(c.productId)}
-                >
-                  +
-                </button>
-
-                <button
-                  onClick={() =>
-                    removeFromCart(c.productId)
+              {/* SINGLE ROW */}
+              <div style={row}>
+                {/* Rate */}
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={c.price}
+                  onChange={(e) =>
+                    updateCartItem(c.productId, {
+                      price: Number(e.target.value || 0),
+                    })
                   }
-                  style={{
-                    marginLeft: "auto",
-                    color: "#ef4444",
-                    background: "none",
-                    border: "none",
-                  }}
+                  placeholder="Rate"
+                  style={smallInput}
+                />
+                ✕{/* Qty */}
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={c.qty}
+                  onChange={(e) =>
+                    updateCartItem(c.productId, {
+                      qty: Number(e.target.value || 1),
+                    })
+                  }
+                  placeholder="Qty"
+                  style={smallInput}
+                />
+                {/* Item total */}
+                <div style={itemTotal}>
+                  ₹{c.qty * c.price * c.unitMultiplier}
+                </div>
+                {/* Remove */}
+                <button
+                  onClick={() => removeFromCart(c.productId)}
+                  style={removeBtn}
                 >
-                  Remove
+                  ✕
                 </button>
               </div>
             </div>
@@ -123,28 +108,90 @@ export default function CartSheet({
 
         {/* Footer */}
         {cart.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <h3>Total: ₹{total}</h3>
+          <div style={footer}>
+            <strong>Total: ₹{total}</strong>
 
-            <button
-  style={{
-    width: "100%",
-    padding: 14,
-    background: "#25D366",
-    color: "#fff",
-    border: "none",
-    borderRadius: 12,
-    fontSize: 16,
-    fontWeight: 600,
-    cursor: "pointer",
-  }}
-  onClick={onCheckout}
->
-  Checkout / WhatsApp
-</button>
+            <button onClick={onCheckout} style={checkoutBtn}>
+              Checkout / WhatsApp
+            </button>
           </div>
         )}
       </div>
     </>
   );
 }
+
+/* ================= STYLES ================= */
+
+const header = {
+  padding: "10px 14px",
+  borderBottom: "1px solid #e5e7eb",
+  background: "#fff",
+};
+
+const customerTxt = {
+  fontSize: 13,
+  color: "#2563eb",
+  fontWeight: 600,
+  marginTop: 4,
+};
+
+const card = {
+  background: "#fff",
+  borderRadius: 14,
+  padding: 10,
+  marginBottom: 10,
+  boxShadow: "0 3px 10px rgba(0,0,0,0.06)",
+};
+
+const row = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+};
+
+const smallInput = {
+  width: 70,
+  padding: "6px 8px",
+  borderRadius: 8,
+  border: "1px solid #d1d5db",
+  fontSize: 14,
+  textAlign: "center",
+
+  /* 🔥 REMOVE ARROWS */
+  appearance: "textfield",
+};
+
+const itemTotal = {
+  marginLeft: "auto",
+  fontWeight: 700,
+  color: "#0f766e",
+  fontSize: 14,
+};
+
+const removeBtn = {
+  background: "#fee2e2",
+  color: "#b91c1c",
+  border: "none",
+  borderRadius: 8,
+  padding: "4px 8px",
+  cursor: "pointer",
+};
+
+const footer = {
+  padding: 14,
+  borderTop: "1px solid #e5e7eb",
+  background: "#fff",
+};
+
+const checkoutBtn = {
+  width: "100%",
+  marginTop: 10,
+  padding: 14,
+  background: "linear-gradient(90deg,#22c55e,#16a34a)",
+  color: "#fff",
+  border: "none",
+  borderRadius: 14,
+  fontSize: 16,
+  fontWeight: 700,
+};
