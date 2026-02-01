@@ -1,17 +1,28 @@
-import { useRef, useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Box,
+  Stack,
+  Typography,
+  Button,
+  IconButton,
+  Chip,
+  Dialog,
+} from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CloseIcon from "@mui/icons-material/Close";
 
 /* ================= UNIT NORMALIZER ================= */
 function normalizeUnits(units) {
-  if (!Array.isArray(units)) {
-    return [{ name: "pcs", multiplier: 1 }];
-  }
-
+  if (!Array.isArray(units)) return [{ name: "pcs", multiplier: 1 }];
   const valid = units.filter(
     (u) => u && typeof u.name === "string" && typeof u.multiplier === "number",
   );
-
   return valid.length ? valid : [{ name: "pcs", multiplier: 1 }];
 }
+
+/* ======================================================
+   PRODUCT VIEW – v0.3 PREMIUM
+====================================================== */
 
 export default function ProductView({
   product,
@@ -25,38 +36,41 @@ export default function ProductView({
 }) {
   if (!product) return null;
 
-  /* ================= CATEGORY PRODUCTS (FIXED) ================= */
+  /* ================= CATEGORY PRODUCTS (FIXED + LOOP) ================= */
 
   const categoryProducts = useMemo(() => {
     return products.filter(
       (p) =>
-        p.id !== product.id &&
         (p.category_id || p.categoryId) ===
-          (product.category_id || product.categoryId),
+        (product.category_id || product.categoryId),
     );
   }, [products, product]);
 
   const currentIndex = categoryProducts.findIndex((p) => p.id === product.id);
 
   const prevProduct =
-    currentIndex > 0 ? categoryProducts[currentIndex - 1] : null;
+    categoryProducts[
+      (currentIndex - 1 + categoryProducts.length) % categoryProducts.length
+    ];
 
   const nextProduct =
-    currentIndex < categoryProducts.length - 1
-      ? categoryProducts[currentIndex + 1]
-      : null;
+    categoryProducts[(currentIndex + 1) % categoryProducts.length];
+
+  /* ================= CART + UNIT ================= */
 
   const cartItem = cart.find((c) => c.productId === product.id);
-
-  /* ================= UNIT STATE ================= */
-
   const units = normalizeUnits(product.units);
 
   const [selectedUnit, setSelectedUnit] = useState(units[0]);
+  const [zoomOpen, setZoomOpen] = useState(false);
 
   useEffect(() => {
     setSelectedUnit(normalizeUnits(product.units)[0]);
   }, [product]);
+
+  const unitPrice = product.price * selectedUnit.multiplier;
+  const qty = cartItem?.qty || 1;
+  const total = qty * unitPrice;
 
   /* ================= SWIPE ================= */
 
@@ -68,277 +82,226 @@ export default function ProductView({
 
   function onTouchEnd(e) {
     const diff = e.changedTouches[0].clientX - touchStartX.current;
-
-    if (diff < -60 && nextProduct) onChangeProduct(nextProduct);
-    if (diff > 60 && prevProduct) onChangeProduct(prevProduct);
+    if (diff < -60) onChangeProduct(nextProduct);
+    if (diff > 60) onChangeProduct(prevProduct);
   }
-
-  const unitPrice = product.price * (selectedUnit.multiplier || 1);
-  const qty = cartItem?.qty || 1;
-  const total = qty * unitPrice;
 
   /* ================= UI ================= */
 
   return (
-    <div style={{ padding: 16, paddingBottom: 120 }}>
-      {/* BACK */}
-      <button onClick={onBack}>⬅ Back</button>
+    <Box sx={{ pb: 12 }}>
+      {/* ================= IMAGE HERO ================= */}
+      <Box
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        sx={{
+          height: "65vh",
+          background: "#f3f4f6",
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+        onClick={() => setZoomOpen(true)}
+      >
+        <IconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            onBack();
+          }}
+          sx={{
+            position: "absolute",
+            top: 12,
+            left: 12,
+            background: "rgba(0,0,0,0.55)",
+            color: "#fff",
+          }}
+        >
+          <ArrowBackIcon />
+        </IconButton>
 
-      {/* ================= MAIN CARD ================= */}
-      <div onTouchStart={onTouchStart} onTouchEnd={onTouchEnd} style={mainCard}>
-        {/* IMAGE */}
-        <div style={imageWrap}>
-          {product.images?.[0] ? (
-            <img src={product.images[0]} alt={product.name} style={image} />
-          ) : (
-            <span style={{ fontSize: 32 }}>📦</span>
-          )}
-
-          {prevProduct && (
-            <button
-              onClick={() => onChangeProduct(prevProduct)}
-              style={navBtn("left")}
-            >
-              ◀
-            </button>
-          )}
-
-          {nextProduct && (
-            <button
-              onClick={() => onChangeProduct(nextProduct)}
-              style={navBtn("right")}
-            >
-              ▶
-            </button>
-          )}
-        </div>
-
-        {/* INFO */}
-        <h2>{product.name}</h2>
-
-        {/* UNIT SELECT */}
-        {units.length > 1 && (
-          <>
-            <div style={{ fontSize: 13, marginTop: 6 }}>Select Unit</div>
-            <select
-              value={selectedUnit.name}
-              onChange={(e) =>
-                setSelectedUnit(units.find((u) => u.name === e.target.value))
-              }
-              style={select}
-            >
-              {units.map((u) => (
-                <option key={u.name} value={u.name}>
-                  {u.name} – ₹{product.price * u.multiplier}
-                </option>
-              ))}
-            </select>
-          </>
-        )}
-
-        {/* PRICE */}
-        <div style={{ fontWeight: 700, marginTop: 10 }}>₹{unitPrice}</div>
-
-        {/* CART */}
-        {!cartItem ? (
-          <button
-            onClick={() => addToCart(product, selectedUnit)}
-            style={addBtn}
-          >
-            Add to Cart
-          </button>
+        {product.images?.[0] ? (
+          <img
+            src={product.images[0]}
+            alt={product.name}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+            }}
+          />
         ) : (
-          <div style={qtyRow}>
-            <button onClick={() => decreaseQty(product.id)} style={qtyBtn}>
-              −
-            </button>
-            <strong>{cartItem.qty}</strong>
-            <button onClick={() => increaseQty(product.id)} style={qtyBtn}>
-              +
-            </button>
-          </div>
+          <Typography fontSize={40}>📦</Typography>
         )}
-      </div>
+      </Box>
 
-      {/* ================= MORE PRODUCTS (SAME CATEGORY) ================= */}
-      {categoryProducts.length > 0 && (
-        <>
-          <h4 style={{ marginTop: 22 }}>More from this category</h4>
+      {/* ================= INFO SHEET ================= */}
+      <Box sx={{ p: 2 }}>
+        <Typography fontSize={22} fontWeight={800}>
+          {product.name}
+        </Typography>
 
-          <div style={grid}>
-            {categoryProducts.slice(0, 12).map((p) => (
-              <div
-                key={p.id}
-                onClick={() => onChangeProduct(p)}
-                style={miniCard}
+        <Chip label="Category" size="small" sx={{ mt: 0.5, mb: 1 }} />
+
+        <Typography fontSize={20} fontWeight={800} color="primary">
+          ₹{unitPrice}{" "}
+          <Typography component="span" fontSize={13} color="text.secondary">
+            / {selectedUnit.name}
+          </Typography>
+        </Typography>
+
+        {/* ================= UNIT PILLS ================= */}
+        {units.length > 1 && (
+          <Stack direction="row" spacing={1} mt={2}>
+            {units.map((u) => (
+              <Button
+                key={u.name}
+                variant={
+                  selectedUnit.name === u.name ? "contained" : "outlined"
+                }
+                onClick={() => setSelectedUnit(u)}
+                size="small"
               >
-                <div style={miniImage}>
+                {u.name}
+              </Button>
+            ))}
+          </Stack>
+        )}
+      </Box>
+
+      {/* ================= SAME CATEGORY ================= */}
+      {categoryProducts.length > 1 && (
+        <Box sx={{ px: 2 }}>
+          <Typography fontWeight={800} mb={1}>
+            More from this category
+          </Typography>
+
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1.5,
+              overflowX: "auto",
+              pb: 2,
+            }}
+          >
+            {categoryProducts.map((p) => (
+              <Box
+                key={p.id}
+                sx={{
+                  minWidth: 140,
+                  background: "#fff",
+                  borderRadius: 2,
+                  p: 1,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                  cursor: "pointer",
+                }}
+                onClick={() => onChangeProduct(p)}
+              >
+                <Box
+                  sx={{
+                    height: 90,
+                    background: "#f3f4f6",
+                    borderRadius: 1,
+                    mb: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
                   {p.images?.[0] ? (
-                    <img src={p.images[0]} alt={p.name} style={image} />
+                    <img
+                      src={p.images[0]}
+                      alt={p.name}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "contain",
+                      }}
+                    />
                   ) : (
                     "📦"
                   )}
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</div>
-                <div style={{ fontSize: 12 }}>₹{p.price}</div>
-              </div>
+                </Box>
+                <Typography fontSize={13} fontWeight={700}>
+                  {p.name}
+                </Typography>
+              </Box>
             ))}
-          </div>
-        </>
+          </Box>
+        </Box>
       )}
 
       {/* ================= STICKY BAR ================= */}
-      <div style={stickyBar}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, color: "#6b7280" }}>{product.name}</div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>₹{total}</div>
-          <div style={{ fontSize: 12, color: "#9ca3af" }}>
+      <Box
+        sx={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: "#fff",
+          borderTop: "1px solid #e5e7eb",
+          p: 1.5,
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          zIndex: 999,
+        }}
+      >
+        <Box flex={1}>
+          <Typography fontSize={13} color="text.secondary">
             {qty} × ₹{unitPrice} / {selectedUnit.name}
-          </div>
-        </div>
+          </Typography>
+          <Typography fontSize={22} fontWeight={800}>
+            ₹{total}
+          </Typography>
+        </Box>
 
         {!cartItem ? (
-          <button
+          <Button
+            variant="contained"
+            size="large"
             onClick={() => addToCart(product, selectedUnit)}
-            style={stickyBtn}
           >
             Add
-          </button>
+          </Button>
         ) : (
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => decreaseQty(product.id)} style={qtyBtn}>
-              −
-            </button>
-            <strong>{cartItem.qty}</strong>
-            <button onClick={() => increaseQty(product.id)} style={qtyBtn}>
-              +
-            </button>
-          </div>
+          <Stack direction="row" spacing={1}>
+            <Button onClick={() => decreaseQty(product.id)}>-</Button>
+            <Typography fontWeight={700}>{cartItem.qty}</Typography>
+            <Button onClick={() => increaseQty(product.id)}>+</Button>
+          </Stack>
         )}
-      </div>
-    </div>
+      </Box>
+
+      {/* ================= ZOOM MODAL ================= */}
+      <Dialog open={zoomOpen} onClose={() => setZoomOpen(false)} fullScreen>
+        <IconButton
+          onClick={() => setZoomOpen(false)}
+          sx={{ position: "absolute", top: 12, right: 12, color: "#fff" }}
+        >
+          <CloseIcon />
+        </IconButton>
+
+        <Box
+          sx={{
+            background: "#000",
+            height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <img
+            src={product.images?.[0]}
+            alt={product.name}
+            style={{
+              maxWidth: "100%",
+              maxHeight: "100%",
+              objectFit: "contain",
+            }}
+          />
+        </Box>
+      </Dialog>
+    </Box>
   );
 }
-
-/* ================= STYLES ================= */
-
-const mainCard = {
-  marginTop: 12,
-  background: "#fff",
-  borderRadius: 16,
-  padding: 16,
-  boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
-};
-
-const imageWrap = {
-  position: "relative",
-  height: "55vh",
-  background: "#f3f4f6",
-  borderRadius: 12,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  marginBottom: 12,
-};
-
-const image = {
-  width: "100%",
-  height: "100%",
-  objectFit: "contain",
-};
-
-const grid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fill,minmax(140px,1fr))",
-  gap: 12,
-};
-
-const miniCard = {
-  background: "#fff",
-  borderRadius: 12,
-  padding: 10,
-  boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
-  cursor: "pointer",
-};
-
-const miniImage = {
-  height: 90,
-  background: "#f3f4f6",
-  borderRadius: 8,
-  marginBottom: 6,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};
-
-const select = {
-  marginTop: 6,
-  padding: 8,
-  borderRadius: 8,
-  width: "100%",
-};
-
-const addBtn = {
-  width: "100%",
-  marginTop: 12,
-  padding: 12,
-  background: "#2563eb",
-  color: "#fff",
-  border: "none",
-  borderRadius: 10,
-  fontWeight: 600,
-};
-
-const stickyBar = {
-  position: "fixed",
-  left: 0,
-  right: 0,
-  bottom: 0,
-  background: "#fff",
-  borderTop: "1px solid #e5e7eb",
-  padding: "12px 14px",
-  display: "flex",
-  alignItems: "center",
-  gap: 12,
-  zIndex: 9999,
-};
-
-const stickyBtn = {
-  padding: "10px 16px",
-  background: "#2563eb",
-  color: "#fff",
-  border: "none",
-  borderRadius: 10,
-  fontWeight: 600,
-};
-
-const qtyRow = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginTop: 12,
-};
-
-const qtyBtn = {
-  width: 36,
-  height: 36,
-  borderRadius: "50%",
-  border: "none",
-  background: "#e5e7eb",
-  fontSize: 18,
-  fontWeight: 700,
-};
-
-const navBtn = (side) => ({
-  position: "absolute",
-  top: "50%",
-  [side]: 8,
-  transform: "translateY(-50%)",
-  background: "rgba(0,0,0,0.6)",
-  color: "#fff",
-  border: "none",
-  borderRadius: "50%",
-  width: 36,
-  height: 36,
-  fontSize: 18,
-});

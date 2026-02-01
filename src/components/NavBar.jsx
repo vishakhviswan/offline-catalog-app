@@ -1,4 +1,27 @@
+import { useState, useMemo } from "react";
+import {
+  AppBar,
+  Toolbar,
+  Box,
+  Typography,
+  IconButton,
+  Badge,
+  InputBase,
+  Paper,
+  Stack,
+} from "@mui/material";
+
+import SearchIcon from "@mui/icons-material/Search";
+import CloseIcon from "@mui/icons-material/Close";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import Inventory2Icon from "@mui/icons-material/Inventory2";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+
 import CustomerSelect from "./CustomerSelect";
+
+/* ======================================================
+   NAV BAR – PREMIUM CATALOG
+====================================================== */
 
 export default function NavBar({
   search,
@@ -11,211 +34,189 @@ export default function NavBar({
   setCustomers,
   onCartClick,
   onOrdersClick,
-  onAdminClick,
-  products,
+  products = [],
   setViewProduct,
 }) {
-  const suggestions =
-    search.length > 0
-      ? products
-          .filter((p) => p && p.name)
-          .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
-          .slice(0, 6)
-      : [];
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const suggestions = useMemo(() => {
+    if (!search || search.length < 2) return [];
+    return products
+      .filter((p) => p?.name)
+      .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+      .slice(0, 6);
+  }, [search, products]);
 
   return (
-    <div style={wrapper}>
-      {/* ================= TOP BAR ================= */}
-      <div style={topRow}>
-        {/* BRAND */}
-        <div>
-          <div style={brand}>🧹 Mangalya Agencies</div>
-          <div style={subtitle}>Wholesale Sales Catalog</div>
-        </div>
+    <AppBar
+      position="sticky"
+      elevation={0}
+      sx={{
+        background: "#ffffff",
+        borderBottom: "1px solid #e5e7eb",
+        color: "#0f172a",
+      }}
+    >
+      <Toolbar sx={{ flexDirection: "column", alignItems: "stretch", gap: 1 }}>
+        {/* ================= TOP ROW ================= */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            width: "100%",
+          }}
+        >
+          {/* BRAND */}
+          <Box>
+            <Typography fontWeight={900} fontSize={18} color="primary.main">
+              🧹 Mangalya Agencies
+            </Typography>
+            <Typography fontSize={12} color="text.secondary">
+              Wholesale Sales Catalog
+            </Typography>
+          </Box>
 
-        {/* ACTIONS */}
-        <div style={actions}>
-          <button onClick={onOrdersClick} style={iconBtn}>
-            📦 Orders
-          </button>
+          {/* ACTION ICONS */}
+          <Stack direction="row" spacing={1} alignItems="center">
+            <IconButton onClick={onOrdersClick}>
+              <Inventory2Icon />
+            </IconButton>
 
-          <button onClick={onCartClick} style={cartBtn}>
-            🛒
-            {cartCount > 0 && <span style={cartBadge}>{cartCount}</span>}
-            <span style={cartTotalTxt}>₹{cartTotal}</span>
-          </button>
+            <IconButton onClick={onCartClick}>
+              <Badge badgeContent={cartCount} color="error">
+                <ShoppingCartIcon />
+              </Badge>
+            </IconButton>
 
-          <button onClick={onAdminClick} style={adminBtn}>
-            ⚙️ Admin
-          </button>
-        </div>
-      </div>
+            <Typography fontWeight={800} fontSize={13} color="success.main">
+              ₹{cartTotal}
+            </Typography>
 
-      {/* ================= SEARCH + CUSTOMER ROW ================= */}
-      <div style={searchRow}>
-        <div style={searchCol}>
-          <input
-            placeholder="🔍 Search products..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={searchInput}
-          />
+            <IconButton
+              onClick={() =>
+                (window.location.href =
+                  "https://vishakhviswan.github.io/offline-catalog-admin/")
+              }
+            >
+              <AdminPanelSettingsIcon />
+            </IconButton>
+          </Stack>
+        </Box>
 
-          {suggestions.length > 0 && (
-            <div style={suggestBox}>
-              {suggestions.map((p) => (
-                <div
-                  key={p.id}
+        {/* ================= SEARCH + CUSTOMER ================= */}
+        <Box
+          sx={{
+            display: "flex",
+            gap: 1,
+            alignItems: "center",
+            width: "100%",
+          }}
+        >
+          {/* SEARCH */}
+          <Box sx={{ flex: 3, position: "relative" }}>
+            {!searchOpen ? (
+              <Paper
+                onClick={() => setSearchOpen(true)}
+                sx={{
+                  px: 2,
+                  py: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  cursor: "pointer",
+                  borderRadius: 3,
+                  background: "#f8fafc",
+                }}
+              >
+                <SearchIcon fontSize="small" />
+                <Typography color="text.secondary" fontSize={14}>
+                  Search products
+                </Typography>
+              </Paper>
+            ) : (
+              <Paper
+                sx={{
+                  px: 1.5,
+                  py: 0.5,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  borderRadius: 3,
+                }}
+              >
+                <SearchIcon fontSize="small" />
+                <InputBase
+                  autoFocus
+                  placeholder="Search product name…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  sx={{ flex: 1, fontSize: 14 }}
+                />
+                <IconButton
+                  size="small"
                   onClick={() => {
-                    setViewProduct(p);
                     setSearch("");
+                    setSearchOpen(false);
                   }}
-                  style={suggestItem}
                 >
-                  <div style={{ fontWeight: 600 }}>{p.name}</div>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>
-                    ₹{p.price}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Paper>
+            )}
 
-        <div style={customerCol}>
-          <CustomerSelect
-            customers={customers}
-            setCustomers={setCustomers}
-            customerName={customerName}
-            setCustomerName={setCustomerName}
-          />
-        </div>
-      </div>
-    </div>
+            {/* SUGGESTIONS */}
+            {searchOpen && suggestions.length > 0 && (
+              <Paper
+                sx={{
+                  position: "absolute",
+                  top: "110%",
+                  left: 0,
+                  right: 0,
+                  zIndex: 20,
+                  borderRadius: 3,
+                  overflow: "hidden",
+                  boxShadow: "0 12px 30px rgba(0,0,0,0.18)",
+                }}
+              >
+                {suggestions.map((p) => (
+                  <Box
+                    key={p.id}
+                    onClick={() => {
+                      setViewProduct(p);
+                      setSearch("");
+                      setSearchOpen(false);
+                    }}
+                    sx={{
+                      px: 2,
+                      py: 1,
+                      cursor: "pointer",
+                      "&:hover": { background: "#f1f5f9" },
+                    }}
+                  >
+                    <Typography fontWeight={600} fontSize={14}>
+                      {p.name}
+                    </Typography>
+                    <Typography fontSize={12} color="text.secondary">
+                      ₹{p.price}
+                    </Typography>
+                  </Box>
+                ))}
+              </Paper>
+            )}
+          </Box>
+
+          {/* CUSTOMER */}
+          <Box sx={{ flex: 1 }}>
+            <CustomerSelect
+              customers={customers}
+              setCustomers={setCustomers}
+              customerName={customerName}
+              setCustomerName={setCustomerName}
+            />
+          </Box>
+        </Box>
+      </Toolbar>
+    </AppBar>
   );
 }
-
-/* ================= STYLES ================= */
-
-const wrapper = {
-  position: "sticky",
-  top: 0,
-  zIndex: 50,
-  background: "#ffffff",
-  borderBottom: "1px solid #e5e7eb",
-  padding: 12,
-};
-
-const topRow = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: 8,
-};
-
-const brand = {
-  fontSize: 18,
-  fontWeight: 800,
-  color: "#2563eb",
-};
-
-const subtitle = {
-  fontSize: 11,
-  color: "#6b7280",
-};
-
-const actions = {
-  display: "flex",
-  gap: 8,
-  alignItems: "center",
-};
-
-const iconBtn = {
-  background: "#f3f4f6",
-  border: "none",
-  padding: "6px 10px",
-  borderRadius: 8,
-  fontSize: 13,
-  cursor: "pointer",
-};
-
-const cartBtn = {
-  position: "relative",
-  background: "#ecfeff",
-  border: "none",
-  padding: "6px 10px",
-  borderRadius: 8,
-  display: "flex",
-  alignItems: "center",
-  gap: 6,
-  cursor: "pointer",
-};
-
-const cartBadge = {
-  position: "absolute",
-  top: -6,
-  right: -6,
-  background: "#ef4444",
-  color: "#fff",
-  borderRadius: "50%",
-  fontSize: 11,
-  padding: "2px 6px",
-};
-
-const cartTotalTxt = {
-  fontSize: 13,
-  fontWeight: 700,
-  color: "#0f766e",
-};
-
-const adminBtn = {
-  background: "#111827",
-  color: "#fff",
-  border: "none",
-  padding: "6px 10px",
-  borderRadius: 8,
-  fontSize: 13,
-  cursor: "pointer",
-};
-
-const searchInput = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 12,
-  border: "1px solid #d1d5db",
-  fontSize: 14,
-};
-
-const suggestBox = {
-  position: "absolute",
-  top: "100%",
-  left: 0,
-  right: 0,
-  background: "#fff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 12,
-  marginTop: 6,
-  boxShadow: "0 10px 25px rgba(0,0,0,0.15)",
-  overflow: "hidden",
-  zIndex: 100,
-};
-
-const suggestItem = {
-  padding: "10px 12px",
-  cursor: "pointer",
-  borderBottom: "1px solid #f3f4f6",
-};
-const searchRow = {
-  display: "flex",
-  gap: 8,
-  marginTop: 12,
-};
-
-const searchCol = {
-  flex: 3,
-  position: "relative",
-};
-
-const customerCol = {
-  flex: 1,
-};

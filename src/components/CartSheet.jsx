@@ -1,197 +1,201 @@
+import {
+  Drawer,
+  Box,
+  Typography,
+  Stack,
+  IconButton,
+  Button,
+  TextField,
+  Card,
+  Divider,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+
 export default function CartSheet({
-  cart,
-  removeFromCart,
+  open = true,
+  cart = [],
   updateCartItem,
+  removeFromCart,
   onClose,
   onCheckout,
   customerName,
 }) {
-  const total = cart.reduce(
-    (s, i) => s + i.qty * i.price * i.unitMultiplier,
-    0,
-  );
+  /* ================= TOTAL ================= */
+  const total = cart.reduce((s, i) => {
+    const qty = Number(i.qty || 0);
+    const price = Number(i.price || 0);
+    return s + qty * price * (i.unitMultiplier || 1);
+  }, 0);
 
   return (
-    <>
-      {/* Overlay */}
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0,0,0,0.45)",
-          zIndex: 40,
-        }}
-      />
-
-      {/* Sheet */}
-      <div
-        style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
+    <Drawer
+      anchor="bottom"
+      open={open}
+      onClose={onClose}
+      PaperProps={{
+        sx: {
           height: "85vh",
-          background: "#f9fafb",
-          borderTopLeftRadius: 18,
-          borderTopRightRadius: 18,
-          zIndex: 50,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          fontFamily: "Inter, sans-serif",
+        },
+      }}
+    >
+      {/* ================= HEADER ================= */}
+      <Box
+        sx={{
+          p: 2,
+          borderBottom: "1px solid #e5e7eb",
           display: "flex",
-          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
-        {/* Header */}
-        <div style={header}>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <h3 style={{ margin: 0 }}>🛒 Cart</h3>
-            <button onClick={onClose}>✕</button>
-          </div>
-          <div style={customerTxt}>
+        <Box>
+          <Typography fontWeight={800} fontSize={18}>
+            🛒 Cart
+          </Typography>
+          <Typography fontSize={13} color="primary.main">
             👤 {customerName || "No customer selected"}
-          </div>
-        </div>
+          </Typography>
+        </Box>
 
-        {/* Items */}
-        <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
-          {cart.length === 0 && (
-            <p style={{ color: "#6b7280" }}>No items in cart</p>
-          )}
+        <IconButton onClick={onClose}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
 
-          {cart.map((c) => (
-            <div key={c.productId} style={card}>
-              {/* Product name */}
-              <div style={{ fontWeight: 600, marginBottom: 6 }}>{c.name}</div>
-
-              {/* SINGLE ROW */}
-              <div style={row}>
-                {/* Rate */}
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={c.price}
-                  onChange={(e) =>
-                    updateCartItem(c.productId, {
-                      price: Number(e.target.value || 0),
-                    })
-                  }
-                  placeholder="Rate"
-                  style={smallInput}
-                />
-                ✕{/* Qty */}
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={c.qty}
-                  onChange={(e) =>
-                    updateCartItem(c.productId, {
-                      qty: Number(e.target.value || 1),
-                    })
-                  }
-                  placeholder="Qty"
-                  style={smallInput}
-                />
-                {/* Item total */}
-                <div style={itemTotal}>
-                  ₹{c.qty * c.price * c.unitMultiplier}
-                </div>
-                {/* Remove */}
-                <button
-                  onClick={() => removeFromCart(c.productId)}
-                  style={removeBtn}
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        {cart.length > 0 && (
-          <div style={footer}>
-            <strong>Total: ₹{total}</strong>
-
-            <button onClick={onCheckout} style={checkoutBtn}>
-              Checkout / WhatsApp
-            </button>
-          </div>
+      {/* ================= ITEMS ================= */}
+      <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
+        {cart.length === 0 && (
+          <Typography color="text.secondary" textAlign="center" mt={6}>
+            Cart is empty
+          </Typography>
         )}
-      </div>
-    </>
+
+        <Stack spacing={2}>
+          {cart.map((c) => (
+            <Card
+              key={c.productId}
+              sx={{
+                p: 2,
+                borderRadius: 3,
+                boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+              }}
+            >
+              <Typography fontWeight={700} mb={1}>
+                {c.name}
+              </Typography>
+
+              {/* INPUT ROW */}
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                {/* PRICE */}
+                <TextField
+                  label="Rate"
+                  value={c.price ?? ""}
+                  inputMode="decimal"
+                  onChange={(e) =>
+                    updateCartItem(c.productId, {
+                      price: e.target.value, // 🔥 string allow
+                    })
+                  }
+                  onBlur={(e) => {
+                    const val = Number(e.target.value);
+                    updateCartItem(c.productId, {
+                      price: val > 0 ? val : 0,
+                    });
+                  }}
+                  size="small"
+                  sx={{ width: 90 }}
+                />
+
+                <Typography>×</Typography>
+
+                {/* QTY */}
+                <TextField
+                  label="Qty"
+                  value={c.qty ?? ""}
+                  inputMode="numeric"
+                  onChange={(e) =>
+                    updateCartItem(c.productId, {
+                      qty: e.target.value, // 🔥 allow empty
+                    })
+                  }
+                  onBlur={(e) => {
+                    const val = Number(e.target.value);
+                    updateCartItem(c.productId, {
+                      qty: val > 0 ? val : 1,
+                    });
+                  }}
+                  size="small"
+                  sx={{ width: 80 }}
+                />
+
+                {/* ITEM TOTAL */}
+                <Typography
+                  sx={{ ml: "auto" }}
+                  fontWeight={800}
+                  color="success.main"
+                >
+                  ₹
+                  {Number(c.qty || 0) *
+                    Number(c.price || 0) *
+                    (c.unitMultiplier || 1)}
+                </Typography>
+
+                {/* REMOVE */}
+                <IconButton
+                  onClick={() => removeFromCart(c.productId)}
+                  color="error"
+                >
+                  <DeleteOutlineIcon />
+                </IconButton>
+              </Stack>
+            </Card>
+          ))}
+        </Stack>
+      </Box>
+
+      {/* ================= FOOTER ================= */}
+      {cart.length > 0 && (
+        <Box
+          sx={{
+            p: 2,
+            borderTop: "1px solid #e5e7eb",
+            background: "#fff",
+          }}
+        >
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            mb={1}
+          >
+            <Typography fontSize={14} color="text.secondary">
+              Grand Total
+            </Typography>
+            <Typography fontSize={20} fontWeight={800}>
+              ₹{total}
+            </Typography>
+          </Stack>
+
+          <Button
+            fullWidth
+            size="large"
+            variant="contained"
+            onClick={onCheckout}
+            sx={{
+              borderRadius: 3,
+              py: 1.4,
+              fontSize: 16,
+              fontWeight: 800,
+            }}
+          >
+            Checkout / WhatsApp
+          </Button>
+        </Box>
+      )}
+    </Drawer>
   );
 }
-
-/* ================= STYLES ================= */
-
-const header = {
-  padding: "10px 14px",
-  borderBottom: "1px solid #e5e7eb",
-  background: "#fff",
-};
-
-const customerTxt = {
-  fontSize: 13,
-  color: "#2563eb",
-  fontWeight: 600,
-  marginTop: 4,
-};
-
-const card = {
-  background: "#fff",
-  borderRadius: 14,
-  padding: 10,
-  marginBottom: 10,
-  boxShadow: "0 3px 10px rgba(0,0,0,0.06)",
-};
-
-const row = {
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-};
-
-const smallInput = {
-  width: 70,
-  padding: "6px 8px",
-  borderRadius: 8,
-  border: "1px solid #d1d5db",
-  fontSize: 14,
-  textAlign: "center",
-
-  /* 🔥 REMOVE ARROWS */
-  appearance: "textfield",
-};
-
-const itemTotal = {
-  marginLeft: "auto",
-  fontWeight: 700,
-  color: "#0f766e",
-  fontSize: 14,
-};
-
-const removeBtn = {
-  background: "#fee2e2",
-  color: "#b91c1c",
-  border: "none",
-  borderRadius: 8,
-  padding: "4px 8px",
-  cursor: "pointer",
-};
-
-const footer = {
-  padding: 14,
-  borderTop: "1px solid #e5e7eb",
-  background: "#fff",
-};
-
-const checkoutBtn = {
-  width: "100%",
-  marginTop: 10,
-  padding: 14,
-  background: "linear-gradient(90deg,#22c55e,#16a34a)",
-  color: "#fff",
-  border: "none",
-  borderRadius: 14,
-  fontSize: 16,
-  fontWeight: 700,
-};

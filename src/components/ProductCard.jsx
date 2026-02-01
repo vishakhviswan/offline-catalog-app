@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 /* ================= UNIT NORMALIZER ================= */
 export function normalizeUnits(units) {
@@ -23,20 +23,21 @@ export default function ProductCard({
   onAdd,
   onInc,
   onDec,
+  imageHero = false, // 🔥 for big catalog grid
 }) {
   if (!product) return null;
 
   const units = normalizeUnits(product.units);
 
-  /* ✅ STATE (KEY FIX) */
   const [selectedUnit, setSelectedUnit] = useState(
     cartItem?.unitName
       ? units.find((u) => u.name === cartItem.unitName) || units[0]
       : units[0],
   );
 
-  /* 🔥 RATE CALCULATION */
-  const displayPrice = product.price * (selectedUnit.multiplier || 1);
+  const displayPrice = useMemo(() => {
+    return product.price * (selectedUnit.multiplier || 1);
+  }, [product.price, selectedUnit]);
 
   return (
     <div
@@ -45,23 +46,48 @@ export default function ProductCard({
         opacity: out ? 0.55 : 1,
       }}
     >
-      {/* IMAGE */}
-      <div style={{...imageWrap, height: compact ? 70:130} } onClick={() => !out && onView?.(product)}>
+      {/* ================= IMAGE ================= */}
+      <div
+        style={{
+          ...imageWrap,
+          height: imageHero ? 220 : compact ? 90 : 150,
+        }}
+        onClick={() => !out && onView?.(product)}
+      >
         {product.images?.[0] ? (
-          <img src={product.images[0]} alt={product.name} style={image} />
+          <img
+            src={product.images[0]}
+            alt={product.name}
+            style={image}
+            loading="lazy"
+          />
         ) : (
-          <span style={placeholder}>📦</span>
+          <div style={placeholder}>📦</div>
         )}
 
+        {/* OUT OF STOCK */}
         {out && <div style={badge}>Out of stock</div>}
+
+        {/* NAME OVERLAY (IMAGE HERO MODE) */}
+        {imageHero && (
+          <div style={overlay}>
+            <div style={overlayName} title={product.name}>
+              {product.name}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* NAME */}
-      <div style={{...name, fontSize: compact ? 13:14}}>{product.name}</div>
+      {/* ================= CONTENT ================= */}
+      {!imageHero && (
+        <div style={name} title={product.name}>
+          {product.name}
+        </div>
+      )}
 
-      {/* PRICE (LIVE UPDATE ✅) */}
-      <div style={{...price, fontSize: compact ? 14 : 15}}>
-        ₹{displayPrice}
+      {/* PRICE */}
+      <div style={price}>
+        ₹{displayPrice.toFixed(2)}
         <span style={unitStyle}> / {selectedUnit.name}</span>
       </div>
 
@@ -95,9 +121,7 @@ export default function ProductCard({
           <button style={qtyBtn} onClick={() => onDec?.(product.id)}>
             −
           </button>
-
           <strong>{cartItem.qty}</strong>
-
           <button style={qtyBtn} onClick={() => onInc?.(product.id)}>
             +
           </button>
@@ -111,41 +135,71 @@ export default function ProductCard({
 
 const card = {
   background: "#ffffff",
-  borderRadius: 16,
-  padding: 12,
-  boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+  borderRadius: 18,
+  padding: 10,
+  boxShadow: "0 10px 26px rgba(0,0,0,0.08)",
   display: "flex",
   flexDirection: "column",
   gap: 8,
 };
 
 const imageWrap = {
+  width: "100%",
   background: "#f3f4f6",
-  borderRadius: 12,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
+  borderRadius: 14,
+  overflow: "hidden",
   position: "relative",
+  cursor: "pointer",
 };
 
 const image = {
   width: "100%",
   height: "100%",
-  objectFit: "contain",
+  objectFit: "cover", // 🔥 perfect for 1080x1080
 };
 
 const placeholder = {
-  fontSize: 30,
+  width: "100%",
+  height: "100%",
+  fontSize: 36,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
   color: "#9ca3af",
 };
 
+/* ===== IMAGE OVERLAY ===== */
+const overlay = {
+  position: "absolute",
+  bottom: 0,
+  left: 0,
+  right: 0,
+  padding: "10px 12px",
+  background: "linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0.05))",
+};
+
+const overlayName = {
+  color: "#ffffff",
+  fontSize: 14,
+  fontWeight: 800,
+  lineHeight: 1.2,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+};
+
+/* ===== TEXT ===== */
 const name = {
-  fontWeight: 700,
+  fontWeight: 800,
+  fontSize: 14,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
 };
 
 const price = {
-  fontWeight: 800,
+  fontWeight: 900,
+  fontSize: 15,
   color: "#16a34a",
 };
 
@@ -155,21 +209,23 @@ const unitStyle = {
   marginLeft: 4,
 };
 
+/* ===== CONTROLS ===== */
 const unitSelect = {
   padding: "8px 10px",
-  borderRadius: 8,
+  borderRadius: 10,
   border: "1px solid #d1d5db",
   fontSize: 13,
 };
 
 const addBtn = {
-  marginTop: 6,
-  padding: 10,
-  borderRadius: 10,
+  marginTop: 4,
+  padding: "10px 0",
+  borderRadius: 12,
   border: "none",
-  background: "#2563eb",
+  background: "#0EA5A4",
   color: "#ffffff",
-  fontWeight: 700,
+  fontWeight: 800,
+  fontSize: 14,
   cursor: "pointer",
 };
 
@@ -180,15 +236,17 @@ const qtyRow = {
 };
 
 const qtyBtn = {
-  width: 34,
-  height: 34,
+  width: 36,
+  height: 36,
   borderRadius: "50%",
   border: "none",
   background: "#e5e7eb",
   fontSize: 18,
-  fontWeight: 700,
+  fontWeight: 800,
+  cursor: "pointer",
 };
 
+/* ===== BADGE ===== */
 const badge = {
   position: "absolute",
   top: 8,
@@ -198,6 +256,5 @@ const badge = {
   padding: "4px 8px",
   borderRadius: 6,
   fontSize: 11,
-  fontWeight: 700,
+  fontWeight: 800,
 };
-

@@ -1,109 +1,144 @@
+import {
+  Box,
+  Card,
+  Typography,
+  Stack,
+  Button,
+  Divider,
+  Chip,
+} from "@mui/material";
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+
 export default function Orders({ orders = [], onBack }) {
   return (
-    <div
-      style={{
-        padding: 16,
-        maxWidth: 900,
-        margin: "0 auto",
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 16,
-        }}
-      >
-        <button onClick={onBack}>⬅ Back</button>
-        <h2 style={{ margin: 0 }}>Orders History</h2>
-      </div>
-
-      {orders.length === 0 && <p style={{ color: "#6b7280" }}>No orders yet</p>}
-
-      {orders.map((o, index) => (
-        <div
-          key={o.id}
-          style={{
-            background: o.total > 2000 ? "#ecfeff" : "#ffffff",
-            borderRadius: 12,
-            padding: 14,
-            marginBottom: 12,
-            boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-          }}
+    <Box sx={{ px: 2, pb: 6, maxWidth: 900, mx: "auto" }}>
+      {/* ================= HEADER ================= */}
+      <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={onBack}
+          variant="outlined"
+          size="small"
         >
-          {/* Order Header */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: 6,
-            }}
-          >
-            <strong>
-              #{orders.length - index} – {o.customer_name || "Walk-in"}
-            </strong>
+          Back
+        </Button>
 
-            <span style={{ fontSize: 12, color: "#6b7280" }}>
-              {new Date(o.created_at).toLocaleString()}
-            </span>
-          </div>
+        <Typography variant="h6" fontWeight={800}>
+          Orders History
+        </Typography>
+      </Stack>
 
-          {/* Items */}
-          <ul style={{ paddingLeft: 16, marginBottom: 8 }}>
-            {(o.order_items || []).map((it, i) => (
-              <li key={i} style={{ fontSize: 14 }}>
-                {it.product_name} – {it.qty} {it.unit_name} × ₹{it.price}
-              </li>
-            ))}
-          </ul>
+      {/* ================= EMPTY ================= */}
+      {orders.length === 0 && (
+        <Card sx={{ p: 3, textAlign: "center" }}>
+          <Typography color="text.secondary">No orders yet</Typography>
+        </Card>
+      )}
 
-          {/* Footer */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <strong>Total: ₹{o.total}</strong>
+      {/* ================= ORDERS ================= */}
+      <Stack spacing={2}>
+        {orders.map((o, index) => {
+          const isHighValue = Number(o.total || 0) > 2000;
 
-            <button
-              onClick={() => {
-                let msg = `*MANGALYA AGENCIES*\n\n`;
-                msg += `Customer: ${o.customer_name || "Walk-in"}\n`;
-                msg += `Date: ${new Date(o.created_at).toLocaleString()}\n\n`;
-
-                (o.order_items || []).forEach((it, i) => {
-                  msg += `${i + 1}) ${it.product_name}\n`;
-                  msg += `   ${it.qty} ${it.unit_name} × ₹${it.price} = ₹${
-                    it.qty * it.price * (it.unit_multiplier || 1)
-                  }\n\n`;
-                });
-
-                msg += `------------------\nTotal: ₹${o.total}`;
-
-                window.open(
-                  "https://wa.me/?text=" + encodeURIComponent(msg),
-                  "_blank",
-                );
-              }}
-              style={{
-                padding: "6px 12px",
-                borderRadius: 8,
-                border: "none",
-                background: "#25D366",
-                color: "#fff",
-                fontSize: 13,
-                cursor: "pointer",
+          return (
+            <Card
+              key={o.id}
+              sx={{
+                p: 2,
+                borderRadius: 3,
+                background: isHighValue
+                  ? "linear-gradient(135deg,#ecfeff,#ffffff)"
+                  : "#ffffff",
               }}
             >
-              WhatsApp
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
+              {/* ===== ORDER HEADER ===== */}
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="flex-start"
+                mb={1}
+              >
+                <Box>
+                  <Typography fontWeight={800}>
+                    #{orders.length - index} – {o.customer_name || "Walk-in"}
+                  </Typography>
+                  <Typography fontSize={12} color="text.secondary">
+                    {new Date(o.created_at).toLocaleString()}
+                  </Typography>
+                </Box>
+
+                {isHighValue && (
+                  <Chip size="small" color="success" label="High Value" />
+                )}
+              </Stack>
+
+              <Divider sx={{ my: 1 }} />
+
+              {/* ===== ITEMS ===== */}
+              <Stack spacing={0.6} mb={1}>
+                {(o.order_items || []).map((it, i) => (
+                  <Typography key={i} fontSize={14} color="text.primary">
+                    {i + 1}. {it.product_name} —{" "}
+                    <b>
+                      {it.qty} {it.unit_name}
+                    </b>{" "}
+                    × ₹{it.price}
+                  </Typography>
+                ))}
+              </Stack>
+
+              <Divider sx={{ my: 1 }} />
+
+              {/* ===== FOOTER ===== */}
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <Typography fontWeight={800} fontSize={16}>
+                  Total: ₹{o.total}
+                </Typography>
+
+                <Button
+                  size="small"
+                  startIcon={<WhatsAppIcon />}
+                  sx={{
+                    background: "linear-gradient(135deg,#22c55e,#16a34a)",
+                    color: "#fff",
+                    "&:hover": {
+                      background: "linear-gradient(135deg,#16a34a,#15803d)",
+                    },
+                  }}
+                  onClick={() => {
+                    let msg = `*MANGALYA AGENCIES*\n\n`;
+                    msg += `Customer: ${o.customer_name || "Walk-in"}\n`;
+                    msg += `Date: ${new Date(
+                      o.created_at,
+                    ).toLocaleString()}\n\n`;
+
+                    (o.order_items || []).forEach((it, i) => {
+                      msg += `${i + 1}) ${it.product_name}\n`;
+                      msg += `   ${it.qty} ${it.unit_name} × ₹${it.price} = ₹${
+                        it.qty * it.price * (it.unit_multiplier || 1)
+                      }\n\n`;
+                    });
+
+                    msg += `------------------\nTotal: ₹${o.total}`;
+
+                    window.open(
+                      "https://wa.me/?text=" + encodeURIComponent(msg),
+                      "_blank",
+                    );
+                  }}
+                >
+                  WhatsApp
+                </Button>
+              </Stack>
+            </Card>
+          );
+        })}
+      </Stack>
+    </Box>
   );
 }
