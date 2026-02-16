@@ -77,7 +77,7 @@ export default function CartSheet({
         <Stack spacing={2}>
           {cart.map((c) => (
             <Card
-              key={c.productId}
+              key={`${c.productId}_${c.unitName}`}
               sx={{
                 p: 2,
                 borderRadius: 3,
@@ -87,17 +87,21 @@ export default function CartSheet({
               <Typography fontWeight={700} mb={1}>
                 {c.name}
               </Typography>
+              <Typography fontSize={12} color="text.secondary">
+                Unit: {c.unitName}
+              </Typography>
 
               {/* INPUT ROW */}
               <Stack direction="row" spacing={1.5} alignItems="center">
                 {/* PRICE */}
                 <TextField
                   label="Rate"
-                  value={c.price ?? ""}
+                  value={Number(c.price || 0) * (c.unitMultiplier || 1)}
                   inputMode="decimal"
                   onChange={(e) =>
-                    updateCartItem(c.productId, {
-                      price: e.target.value, // 🔥 string allow
+                    updateCartItem(c.productId, c.unitName, {
+                      price:
+                        Number(e.target.value || 0) / (c.unitMultiplier || 1), // 🔥 string allow
                     })
                   }
                   onBlur={(e) => {
@@ -146,7 +150,7 @@ export default function CartSheet({
 
                 {/* REMOVE */}
                 <IconButton
-                  onClick={() => removeFromCart(c.productId)}
+                  onClick={() => removeFromCart(c.productId, c.unitName)}
                   color="error"
                 >
                   <DeleteOutlineIcon />

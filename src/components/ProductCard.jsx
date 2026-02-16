@@ -1,6 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
-/* ================= UNIT NORMALIZER ================= */
 export function normalizeUnits(units) {
   if (!Array.isArray(units)) {
     return [{ name: "pcs", multiplier: 1 }];
@@ -13,27 +12,44 @@ export function normalizeUnits(units) {
   return valid.length ? valid : [{ name: "pcs", multiplier: 1 }];
 }
 
-/* ================= PRODUCT CARD ================= */
 export default function ProductCard({
   product,
-  compact = false,
-  cartItem,
-  out = false,
+  cart = [],
   onView,
   onAdd,
   onInc,
   onDec,
-  imageHero = false, // 🔥 for big catalog grid
+  orderMode = false,
+  layoutMode = "grid-3",
+  out = false,
 }) {
   if (!product) return null;
 
   const units = normalizeUnits(product.units);
 
-  const [selectedUnit, setSelectedUnit] = useState(
-    cartItem?.unitName
-      ? units.find((u) => u.name === cartItem.unitName) || units[0]
-      : units[0],
-  );
+  // 🔥 Layout detection INSIDE component
+  const isList = layoutMode === "list";
+  const isSmall = layoutMode === "grid-4";
+  const isMedium = layoutMode === "grid-3";
+  const isLarge = layoutMode === "grid-2";
+
+  const [selectedUnit, setSelectedUnit] = useState(units[0]);
+
+  const activeCartItem = useMemo(() => {
+    return cart.find(
+      (c) => c.productId === product.id && c.unitName === selectedUnit.name,
+    );
+  }, [cart, product.id, selectedUnit]);
+
+  useEffect(() => {
+    const existing = cart.find((c) => c.productId === product.id);
+    if (existing) {
+      const matched = units.find((u) => u.name === existing.unitName);
+      if (matched && matched.name !== selectedUnit.name) {
+        setSelectedUnit(matched);
+      }
+    }
+  }, [cart, product.id, units, selectedUnit.name]);
 
   const displayPrice = useMemo(() => {
     return product.price * (selectedUnit.multiplier || 1);
@@ -42,87 +58,160 @@ export default function ProductCard({
   return (
     <div
       style={{
-        ...card,
-        opacity: out ? 0.55 : 1,
+        background: "#fff",
+        borderRadius: isSmall ? 12 : 18,
+        padding: isSmall ? 8 : 12,
+        boxShadow: "0 8px 22px rgba(0,0,0,0.08)",
+        display: "flex",
+        flexDirection: "column",
+        gap: isSmall ? 6 : 8,
+        width: "100%",
+        minWidth: 0,
+        opacity: out ? 0.5 : 1,
+        filter: out ? "grayscale(100%)" : "none",
       }}
     >
-      {/* ================= IMAGE ================= */}
+      {/* IMAGE */}
       <div
         style={{
-          ...imageWrap,
-          height: imageHero ? 220 : compact ? 90 : 150,
+          width: "100%",
+          aspectRatio: "1 / 1",
+          background: "#f3f4f6",
+          borderRadius: isSmall ? 10 : 14,
+          overflow: "hidden",
+          cursor: "pointer",
+          position: "relative", // 🔥 IMPORTANT
         }}
-        onClick={() => !out && onView?.(product)}
+        onClick={() => onView?.(product)}
       >
         {product.images?.[0] ? (
           <img
             src={product.images[0]}
             alt={product.name}
-            style={image}
-            loading="lazy"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
           />
         ) : (
-          <div style={placeholder}>📦</div>
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: isSmall ? 22 : 32,
+            }}
+          >
+            📦
+          </div>
         )}
 
-        {/* OUT OF STOCK */}
-        {out && <div style={badge}>Out of stock</div>}
-
-        {/* NAME OVERLAY (IMAGE HERO MODE) */}
-        {imageHero && (
-          <div style={overlay}>
-            <div style={overlayName} title={product.name}>
-              {product.name}
-            </div>
+        {/* 🔥 OUT OF STOCK BADGE */}
+        {out && (
+          <div
+            style={{
+              position: "absolute",
+              top: 8,
+              left: 8,
+              background: "#ef4444",
+              color: "#fff",
+              padding: "4px 8px",
+              borderRadius: 6,
+              fontSize: 11,
+              fontWeight: 700,
+            }}
+          >
+            Out of stock
           </div>
         )}
       </div>
 
-      {/* ================= CONTENT ================= */}
-      {!imageHero && (
-        <div style={name} title={product.name}>
-          {product.name}
-        </div>
-      )}
-
-      {/* PRICE */}
-      <div style={price}>
-        ₹{displayPrice.toFixed(2)}
-        <span style={unitStyle}> / {selectedUnit.name}</span>
+      {/* NAME */}
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: isSmall ? 12 : isMedium ? 14 : 16,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {product.name}
       </div>
 
-      {/* UNIT SELECT */}
-      {units.length > 1 && !cartItem && (
-        <select
-          style={unitSelect}
-          value={selectedUnit.name}
-          onChange={(e) => {
-            const u = units.find((x) => x.name === e.target.value);
-            if (u) setSelectedUnit(u);
+      {/* PRICE */}
+      <div
+        style={{
+          fontWeight: 800,
+          fontSize: isSmall ? 13 : 15,
+          color: "#16a34a",
+        }}
+      >
+        ₹{displayPrice.toFixed(2)}
+        <span style={{ fontSize: 11, color: "#6b7280", marginLeft: 4 }}>
+          / {selectedUnit.name}
+        </span>
+      </div>
+
+      {/* ORDER MODE CONTROLS */}
+      {orderMode && !activeCartItem && (
+        <button
+          onClick={() => onAdd?.(product, selectedUnit)}
+          style={{
+            padding: isSmall ? "6px 0" : "10px 0",
+            borderRadius: 12,
+            border: "none",
+            background: "#0EA5A4",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: isSmall ? 12 : 14,
+            cursor: "pointer",
           }}
         >
-          {units.map((u) => (
-            <option key={u.name} value={u.name}>
-              {u.name}
-            </option>
-          ))}
-        </select>
-      )}
-
-      {/* ADD / QTY */}
-      {!out && !cartItem && (
-        <button style={addBtn} onClick={() => onAdd?.(product, selectedUnit)}>
-          ➕ Add
+          Add
         </button>
       )}
 
-      {cartItem && (
-        <div style={qtyRow}>
-          <button style={qtyBtn} onClick={() => onDec?.(product.id)}>
+      {orderMode && activeCartItem && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <button
+            onClick={() => onDec?.(product.id, selectedUnit.name)}
+            style={{
+              width: isSmall ? 28 : 36,
+              height: isSmall ? 28 : 36,
+              borderRadius: "50%",
+              border: "none",
+              background: "#e5e7eb",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
             −
           </button>
-          <strong>{cartItem.qty}</strong>
-          <button style={qtyBtn} onClick={() => onInc?.(product.id)}>
+
+          <strong>{activeCartItem.qty}</strong>
+
+          <button
+            onClick={() => onInc?.(product.id, selectedUnit.name)}
+            style={{
+              width: isSmall ? 28 : 36,
+              height: isSmall ? 28 : 36,
+              borderRadius: "50%",
+              border: "none",
+              background: "#e5e7eb",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
             +
           </button>
         </div>
@@ -130,131 +219,3 @@ export default function ProductCard({
     </div>
   );
 }
-
-/* ================= STYLES ================= */
-
-const card = {
-  background: "#ffffff",
-  borderRadius: 18,
-  padding: 10,
-  boxShadow: "0 10px 26px rgba(0,0,0,0.08)",
-  display: "flex",
-  flexDirection: "column",
-  gap: 8,
-};
-
-const imageWrap = {
-  width: "100%",
-  background: "#f3f4f6",
-  borderRadius: 14,
-  overflow: "hidden",
-  position: "relative",
-  cursor: "pointer",
-};
-
-const image = {
-  width: "100%",
-  height: "100%",
-  objectFit: "cover", // 🔥 perfect for 1080x1080
-};
-
-const placeholder = {
-  width: "100%",
-  height: "100%",
-  fontSize: 36,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  color: "#9ca3af",
-};
-
-/* ===== IMAGE OVERLAY ===== */
-const overlay = {
-  position: "absolute",
-  bottom: 0,
-  left: 0,
-  right: 0,
-  padding: "10px 12px",
-  background: "linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0.05))",
-};
-
-const overlayName = {
-  color: "#ffffff",
-  fontSize: 14,
-  fontWeight: 800,
-  lineHeight: 1.2,
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-};
-
-/* ===== TEXT ===== */
-const name = {
-  fontWeight: 800,
-  fontSize: 14,
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-};
-
-const price = {
-  fontWeight: 900,
-  fontSize: 15,
-  color: "#16a34a",
-};
-
-const unitStyle = {
-  fontSize: 12,
-  color: "#6b7280",
-  marginLeft: 4,
-};
-
-/* ===== CONTROLS ===== */
-const unitSelect = {
-  padding: "8px 10px",
-  borderRadius: 10,
-  border: "1px solid #d1d5db",
-  fontSize: 13,
-};
-
-const addBtn = {
-  marginTop: 4,
-  padding: "10px 0",
-  borderRadius: 12,
-  border: "none",
-  background: "#0EA5A4",
-  color: "#ffffff",
-  fontWeight: 800,
-  fontSize: 14,
-  cursor: "pointer",
-};
-
-const qtyRow = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-};
-
-const qtyBtn = {
-  width: 36,
-  height: 36,
-  borderRadius: "50%",
-  border: "none",
-  background: "#e5e7eb",
-  fontSize: 18,
-  fontWeight: 800,
-  cursor: "pointer",
-};
-
-/* ===== BADGE ===== */
-const badge = {
-  position: "absolute",
-  top: 8,
-  left: 8,
-  background: "#ef4444",
-  color: "#fff",
-  padding: "4px 8px",
-  borderRadius: 6,
-  fontSize: 11,
-  fontWeight: 800,
-};

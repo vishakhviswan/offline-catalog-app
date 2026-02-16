@@ -6,14 +6,36 @@ import {
   Button,
   Divider,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { useState } from "react";
 
-export default function Orders({ orders = [], onBack }) {
+export default function Orders({ orders = [], onBack, onDeleteOrder }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+
+  const handleDeleteClick = (id) => {
+    setSelectedOrderId(id);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (selectedOrderId) {
+      onDeleteOrder?.(selectedOrderId);
+    }
+    setConfirmOpen(false);
+    setSelectedOrderId(null);
+  };
+
   return (
     <Box sx={{ px: 2, pb: 6, maxWidth: 900, mx: "auto" }}>
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
       <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
         <Button
           startIcon={<ArrowBackIcon />}
@@ -29,14 +51,12 @@ export default function Orders({ orders = [], onBack }) {
         </Typography>
       </Stack>
 
-      {/* ================= EMPTY ================= */}
       {orders.length === 0 && (
         <Card sx={{ p: 3, textAlign: "center" }}>
           <Typography color="text.secondary">No orders yet</Typography>
         </Card>
       )}
 
-      {/* ================= ORDERS ================= */}
       <Stack spacing={2}>
         {orders.map((o, index) => {
           const isHighValue = Number(o.total || 0) > 2000;
@@ -52,7 +72,7 @@ export default function Orders({ orders = [], onBack }) {
                   : "#ffffff",
               }}
             >
-              {/* ===== ORDER HEADER ===== */}
+              {/* HEADER */}
               <Stack
                 direction="row"
                 justifyContent="space-between"
@@ -68,17 +88,28 @@ export default function Orders({ orders = [], onBack }) {
                   </Typography>
                 </Box>
 
-                {isHighValue && (
-                  <Chip size="small" color="success" label="High Value" />
-                )}
+                <Stack direction="row" spacing={1}>
+                  {isHighValue && (
+                    <Chip size="small" color="success" label="High Value" />
+                  )}
+
+                  <Button
+                    size="small"
+                    color="error"
+                    startIcon={<DeleteIcon />}
+                    onClick={() => handleDeleteClick(o.id)}
+                  >
+                    Delete
+                  </Button>
+                </Stack>
               </Stack>
 
               <Divider sx={{ my: 1 }} />
 
-              {/* ===== ITEMS ===== */}
+              {/* ITEMS */}
               <Stack spacing={0.6} mb={1}>
                 {(o.order_items || []).map((it, i) => (
-                  <Typography key={i} fontSize={14} color="text.primary">
+                  <Typography key={i} fontSize={14}>
                     {i + 1}. {it.product_name} —{" "}
                     <b>
                       {it.qty} {it.unit_name}
@@ -90,7 +121,7 @@ export default function Orders({ orders = [], onBack }) {
 
               <Divider sx={{ my: 1 }} />
 
-              {/* ===== FOOTER ===== */}
+              {/* FOOTER */}
               <Stack
                 direction="row"
                 justifyContent="space-between"
@@ -139,6 +170,24 @@ export default function Orders({ orders = [], onBack }) {
           );
         })}
       </Stack>
+
+      {/* CONFIRM DIALOG */}
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
+        <DialogTitle>Delete Order?</DialogTitle>
+        <DialogContent>
+          Are you sure you want to permanently delete this order?
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={handleConfirmDelete}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

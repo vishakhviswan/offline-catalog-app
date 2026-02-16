@@ -36,6 +36,13 @@ export default function ProductView({
 }) {
   if (!product) return null;
 
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "auto", // or "smooth"
+    });
+  }, []);
+
   /* ================= CATEGORY PRODUCTS (FIXED + LOOP) ================= */
 
   const categoryProducts = useMemo(() => {
@@ -57,11 +64,14 @@ export default function ProductView({
     categoryProducts[(currentIndex + 1) % categoryProducts.length];
 
   /* ================= CART + UNIT ================= */
-
-  const cartItem = cart.find((c) => c.productId === product.id);
   const units = normalizeUnits(product.units);
 
   const [selectedUnit, setSelectedUnit] = useState(units[0]);
+
+  const cartItem = cart.find(
+    (c) => c.productId === product.id && c.unitName === selectedUnit.name,
+  );
+
   const [zoomOpen, setZoomOpen] = useState(false);
 
   useEffect(() => {
@@ -266,9 +276,13 @@ export default function ProductView({
           </Button>
         ) : (
           <Stack direction="row" spacing={1}>
-            <Button onClick={() => decreaseQty(product.id)}>-</Button>
+            <Button onClick={() => decreaseQty(product.id, selectedUnit.name)}>
+              -
+            </Button>
             <Typography fontWeight={700}>{cartItem.qty}</Typography>
-            <Button onClick={() => increaseQty(product.id)}>+</Button>
+            <Button onClick={() => increaseQty(product.id, selectedUnit.name)}>
+              +
+            </Button>
           </Stack>
         )}
       </Box>

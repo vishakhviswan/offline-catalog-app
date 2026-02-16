@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Catalog from "./pages/Catalog";
 import ProductView from "./pages/ProductView";
 import NavBar from "./components/NavBar";
 import CartSheet from "./components/CartSheet";
 import Orders from "./pages/Orders";
+import FilterDrawer from "./components/FilterDrawer";
 
 function App() {
   /* ================= CORE STATE ================= */
@@ -13,6 +14,7 @@ function App() {
   const [products, setProducts] = useState([]);
 
   const [viewProduct, setViewProduct] = useState(null);
+  const [savedScrollY, setSavedScrollY] = useState(0);
 
   const [cart, setCart] = useState([]);
   const [cartLoaded, setCartLoaded] = useState(false);
@@ -26,6 +28,121 @@ function App() {
   const [search, setSearch] = useState("");
   const [showCart, setShowCart] = useState(false);
 
+  const [showOutOfStock, setShowOutOfStock] = useState(true);
+  const [mostSellingOnly, setMostSellingOnly] = useState(false);
+
+  /* ================= NEW STATES ================= */
+
+  const [orderMode, setOrderMode] = useState(true);
+  const [filterOpen, setFilterOpen] = useState(false);
+
+  const [imageFilter, setImageFilter] = useState("all");
+  const [sortOption, setSortOption] = useState("default");
+  const [layoutMode, setLayoutMode] = useState("grid-3");
+
+  /* ================= SCROLL RESTORE ================= */
+
+  const openProduct = (product) => {
+    setSavedScrollY(window.scrollY);
+    setViewProduct(product);
+  };
+
+  const handleBackFromProduct = () => {
+    setViewProduct(null);
+    setTimeout(() => {
+      window.scrollTo(0, savedScrollY);
+    }, 0);
+  };
+
+
+
+  async function handleCheckout() {
+    if (cart.length === 0) return;
+
+    try {
+      /* ================= SAVE TO DB ================= */
+      const response = await fetch(
+        "https://offline-catalog-backend-production.up.railway.app/api/orders",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            customer_id: null,
+            customer_name: customerName || "Walk-in",
+            items: cart,
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Order save failed");
+      }
+
+      /* ================= WHATSAPP MESSAGE ================= */
+
+      let msg = `*MANGALYA AGENCIES*\n\n`;
+      msg += `Customer: ${customerName || "Walk-in"}\n\n`;
+
+      cart.forEach((c, i) => {
+        const lineTotal =
+          Number(c.qty) * Number(c.price) * Number(c.unitMultiplier || 1);
+
+        msg += `${i + 1}) ${c.name}\n`;
+        msg += `   ${c.qty} ${c.unitName} × ₹${c.price} = ₹${lineTotal}\n\n`;
+      });
+
+      const grandTotal = cart.reduce(
+        (s, i) =>
+          s + Number(i.qty) * Number(i.price) * Number(i.unitMultiplier || 1),
+        0,
+      );
+
+      msg += `------------------\nTotal: ₹${grandTotal}`;
+
+      /* ================= OPEN WHATSAPP ================= */
+
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+      window.open(whatsappUrl, "_blank");
+
+      /* ================= CLEAR CART ================= */
+
+      setCart([]);
+      setCustomerName("");
+      localStorage.removeItem("cart");
+      setShowCart(false);
+    } catch (err) {
+      console.error("Checkout error:", err);
+      alert("Order save failed ❌");
+    }
+  }
+
+async function handleDeleteOrder(orderId) {
+  try {
+    const res = await fetch(
+      `https://offline-catalog-backend-production.up.railway.app/api/orders/${orderId}`,
+      {
+        method: "DELETE",
+      },
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Delete failed");
+    }
+
+    // 🔥 remove instantly from UI
+    setOrders((prev) => prev.filter((o) => o.id !== orderId));
+  } catch (err) {
+    console.error("Delete error:", err);
+    alert("Delete failed ❌");
+  }
+}
+
   /* ================= CART HELPERS ================= */
 
   function addToCart(product, unit) {
@@ -35,37 +152,71 @@ function App() {
         ? product.units[0]
         : { name: "pcs", multiplier: 1 });
 
-    setCart([
-      ...cart,
-      {
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        unitName: safeUnit.name,
-        unitMultiplier: safeUnit.multiplier,
-        qty: 1,
-      },
-    ]);
+    const existing = cart.find(
+      (c) => c.productId === product.id && c.unitName === safeUnit.name,
+    );
+
+    if (existing) {
+      setCart(
+        cart.map((c) =>
+          c.productId === product.id && c.unitName === safeUnit.name
+            ? { ...c, qty: c.qty + 1 }
+            : c,
+        ),
+      );
+    } else {
+      setCart([
+        ...cart,
+        {
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          unitName: safeUnit.name,
+          unitMultiplier: safeUnit.multiplier,
+          qty: 1,
+        },
+      ]);
+    }
   }
 
-  function increaseQty(productId) {
-    setCart(
-      cart.map((c) =>
-        c.productId === productId ? { ...c, qty: c.qty + 1 } : c,
+  function increaseQty(productId, unitName) {
+    setCart((prev) =>
+      prev.map((c) =>
+        c.productId === productId && c.unitName === unitName
+          ? { ...c, qty: c.qty + 1 }
+          : c,
       ),
     );
   }
 
-  function decreaseQty(productId) {
-    setCart(
-      cart
-        .map((c) => (c.productId === productId ? { ...c, qty: c.qty - 1 } : c))
+  function decreaseQty(productId, unitName) {
+    setCart((prev) =>
+      prev
+        .map((c) =>
+          c.productId === productId && c.unitName === unitName
+            ? { ...c, qty: c.qty - 1 }
+            : c,
+        )
         .filter((c) => c.qty > 0),
     );
   }
 
-  function removeFromCart(productId) {
-    setCart(cart.filter((c) => c.productId !== productId));
+  function removeFromCart(productId, unitName) {
+    setCart((prev) =>
+      prev.filter(
+        (c) => !(c.productId === productId && c.unitName === unitName),
+      ),
+    );
+  }
+
+  function updateCartItem(productId, unitName, changes) {
+    setCart((prev) =>
+      prev.map((c) =>
+        c.productId === productId && c.unitName === unitName
+          ? { ...c, ...changes }
+          : c,
+      ),
+    );
   }
 
   const cartTotal = cart.reduce(
@@ -73,74 +224,21 @@ function App() {
     0,
   );
 
-  function updateCartItem(productId, changes) {
-    setCart((prev) =>
-      prev.map((c) => (c.productId === productId ? { ...c, ...changes } : c)),
-    );
-  }
-  /* ================= CHECKOUT ================= */
-  async function handleCheckout() {
-    if (!cart.length) return;
+  /* ================= DATA LOADERS ================= */
+const salesMap = useMemo(() => {
+  const map = {};
 
-    const payload = {
-      customer_name: customerName || "Walk-in",
-      items: cart.map((c) => ({
-        productId: c.productId,
-        name: c.name,
-        qty: Number(c.qty),
-        price: Number(c.price),
-        unitName: c.unitName,
-        unitMultiplier: Number(c.unitMultiplier || 1),
-      })),
-    };
+  orders.forEach((order) => {
+    order.order_items?.forEach((item) => {
+      map[item.product_id] =
+        (map[item.product_id] || 0) + Number(item.qty || 0);
+    });
+  });
 
-    try {
-      const res = await fetch(
-        "https://offline-catalog-backend-production.up.railway.app/api/orders",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        },
-      );
+  return map;
+}, [orders]);
 
-      const text = await res.text(); // 🔥 IMPORTANT
-      if (!res.ok) throw new Error(text);
 
-      console.log("Order saved:", text);
-
-      // 🔄 refresh orders list from backend
-      const freshOrders = await fetch(
-        "https://offline-catalog-backend-production.up.railway.app/api/orders",
-      ).then((r) => r.json());
-
-      setOrders(freshOrders || []);
-
-      // WhatsApp message
-      let msg = `*MANGALYA AGENCIES*\n\nCustomer: ${customerName || "Walk-in"}\n\n`;
-      cart.forEach((c, i) => {
-        msg += `${i + 1}) ${c.name}\n`;
-        msg += `   ${c.qty} ${c.unitName} × ₹${c.price}\n\n`;
-      });
-
-      window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank");
-
-      // reset
-      setCart([]);
-      setCustomerName("");
-      localStorage.removeItem("cart");
-      setShowCart(false);
-    } catch (err) {
-      console.error("Order save failed:", err);
-      alert("Order save failed");
-    }
-  }
-
-  /* ================= LOADERS ================= */
-
-  // Cart
   useEffect(() => {
     const saved = localStorage.getItem("cart");
     if (saved) {
@@ -156,51 +254,43 @@ function App() {
     localStorage.setItem("cart", JSON.stringify(cart));
   }, [cart, cartLoaded]);
 
-  // Categories
   useEffect(() => {
     fetch(
       "https://offline-catalog-backend-production.up.railway.app/api/categories",
     )
       .then((r) => r.json())
-      .then((d) => setCategories(Array.isArray(d) ? d : []))
-      .catch(() => setCategories([]));
+      .then((d) => setCategories(Array.isArray(d) ? d : []));
   }, []);
 
-  // Products
   useEffect(() => {
     fetch(
       "https://offline-catalog-backend-production.up.railway.app/api/products",
     )
       .then((r) => r.json())
-      .then((d) => setProducts(Array.isArray(d) ? d : []))
-      .catch(() => setProducts([]));
+      .then((d) => setProducts(Array.isArray(d) ? d : []));
   }, []);
 
-  // Customers
   useEffect(() => {
     fetch(
       "https://offline-catalog-backend-production.up.railway.app/api/customers",
     )
       .then((r) => r.json())
-      .then((d) => setCustomers(Array.isArray(d) ? d : []))
-      .catch(() => setCustomers([]));
+      .then((d) => setCustomers(Array.isArray(d) ? d : []));
   }, []);
 
-  // Orders (FROM BACKEND)
   useEffect(() => {
     fetch(
       "https://offline-catalog-backend-production.up.railway.app/api/orders",
     )
       .then((r) => r.json())
-      .then((data) => {
-        setOrders(data || []);
-      })
-      .catch((e) => {
-        console.error("Orders fetch failed", e);
-        setOrders([]);
-      });
+      .then((data) => setOrders(data || []));
   }, []);
 
+  // useEffect(() => {
+  //   if (categories.length > 0 && !selectedCategory) {
+  //     setSelectedCategory(categories[0].id);
+  //   }
+  // }, [categories, selectedCategory]);
   /* ================= ROUTING ================= */
 
   if (viewProduct) {
@@ -212,15 +302,22 @@ function App() {
         addToCart={addToCart}
         increaseQty={increaseQty}
         decreaseQty={decreaseQty}
-        onBack={() => setViewProduct(null)}
-        onChangeProduct={(p) => setViewProduct(p)}
+        onBack={handleBackFromProduct}
+        onChangeProduct={openProduct}
       />
     );
   }
 
-  if (showOrders) {
-    return <Orders orders={orders} onBack={() => setShowOrders(false)} />;
-  }
+if (showOrders) {
+  return (
+    <Orders
+      orders={orders}
+      onBack={() => setShowOrders(false)}
+      onDeleteOrder={handleDeleteOrder}
+    />
+  );
+}
+
 
   /* ================= UI ================= */
 
@@ -236,14 +333,10 @@ function App() {
         customers={customers}
         setCustomers={setCustomers}
         products={products}
-        setViewProduct={setViewProduct}
+        setViewProduct={openProduct}
         onCartClick={() => setShowCart(true)}
         onOrdersClick={() => setShowOrders(true)}
-        onAdminClick={() => {
-          if (window.confirm("Open Admin Panel?")) {
-            window.open("https://offline-catalog-admin.vercel.app", "_blank");
-          }
-        }}
+        onFilterClick={() => setFilterOpen(true)}
       />
 
       <Catalog
@@ -251,7 +344,7 @@ function App() {
         selectedCategory={selectedCategory}
         setSelectedCategory={setSelectedCategory}
         products={products}
-        setViewProduct={setViewProduct}
+        setViewProduct={openProduct}
         cart={cart}
         addToCart={addToCart}
         increaseQty={increaseQty}
@@ -259,6 +352,16 @@ function App() {
         search={search}
         orders={orders}
         customerName={customerName}
+        orderMode={orderMode}
+        setOrderMode={setOrderMode}
+        imageFilter={imageFilter}
+        sortOption={sortOption}
+        layoutMode={layoutMode}
+        showOutOfStock={showOutOfStock}
+        setShowOutOfStock={setShowOutOfStock}
+        mostSellingOnly={mostSellingOnly}
+        setMostSellingOnly={setMostSellingOnly}
+        salesMap={salesMap}
       />
 
       {showCart && (
@@ -273,6 +376,17 @@ function App() {
           onCheckout={handleCheckout}
         />
       )}
+
+      <FilterDrawer
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        imageFilter={imageFilter}
+        setImageFilter={setImageFilter}
+        sortOption={sortOption}
+        setSortOption={setSortOption}
+        layoutMode={layoutMode}
+        setLayoutMode={setLayoutMode}
+      />
     </>
   );
 }
