@@ -18,58 +18,90 @@ export default function NavBar({
   const suggestions =
     search.length > 0
       ? products
-          .filter((p) =>
-            p.name.toLowerCase().includes(search.toLowerCase())
-          )
+          .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
           .slice(0, 6)
       : [];
 
   return (
-    <div style={{ position: "sticky", top: 0, zIndex: 50, background: "#fff", borderBottom: "1px solid #e5e7eb", padding: 12 }}>
-      {/* TOP BAR */}
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
+    <div
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+        background: "#ffffffee",
+        backdropFilter: "blur(8px)",
+        borderBottom: "1px solid #e5e7eb",
+        padding: 12,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 10,
+        }}
+      >
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#2563eb" }}>
-            Mangalya Agencies
-          </div>
-          <div style={{ fontSize: 11, color: "#6b7280" }}>
-            Sales Catalog
-          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#2563eb" }}>Mangalya Agencies</div>
+          <div style={{ fontSize: 11, color: "#6b7280" }}>Sales Catalog</div>
         </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onOrdersClick}>Orders</button>
-
-          <button onClick={onCartClick}>
-            🛒 {cartCount > 0 && `(${cartCount})`} ₹{cartTotal}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button onClick={onOrdersClick} style={chipBtn}>Orders</button>
+          <button onClick={onCartClick} style={primaryBtn}>
+            🛒 {cartCount > 0 ? `(${cartCount})` : ""} ₹{cartTotal}
           </button>
-
-          <button onClick={onAdminClick}>Admin</button>
+          <button onClick={onAdminClick} style={chipBtn}>Admin</button>
         </div>
       </div>
 
-      {/* SEARCH */}
       <input
         placeholder="🔍 Search products..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        style={{ width: "100%", padding: 10, marginTop: 8 }}
+        style={{
+          width: "100%",
+          padding: "10px 12px",
+          marginTop: 10,
+          borderRadius: 10,
+          border: "1px solid #d1d5db",
+          outline: "none",
+        }}
       />
 
-      {suggestions.map((p) => (
+      {suggestions.length > 0 && (
         <div
-          key={p.id}
-          onClick={() => {
-            setViewProduct(p);
-            setSearch("");
+          style={{
+            marginTop: 6,
+            border: "1px solid #e5e7eb",
+            borderRadius: 10,
+            overflow: "hidden",
+            background: "#fff",
+            boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
           }}
-          style={{ padding: 8, cursor: "pointer" }}
         >
-          {p.name} – ₹{p.price}
+          {suggestions.map((p) => (
+            <div
+              key={p.id}
+              onClick={() => {
+                setViewProduct(p);
+                setSearch("");
+              }}
+              style={{
+                padding: "10px 12px",
+                cursor: "pointer",
+                borderBottom: "1px solid #f3f4f6",
+                fontSize: 14,
+              }}
+            >
+              {p.name} – ₹{p.price}
+            </div>
+          ))}
         </div>
-      ))}
+      )}
 
-      {/* CUSTOMER */}
       <CustomerSelect
         customers={customers}
         setCustomers={setCustomers}
@@ -80,70 +112,19 @@ export default function NavBar({
   );
 }
 
-/* ===== styles ===== */
-
-const topRow = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-};
-
-const brand = { fontSize: 18, fontWeight: 700, color: "#2563eb" };
-const subtitle = { fontSize: 11, color: "#6b7280" };
-
-const input = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 10,
+const chipBtn = {
   border: "1px solid #d1d5db",
-  marginTop: 8,
-};
-
-const linkBtn = {
-  background: "none",
-  border: "none",
-  color: "#2563eb",
+  background: "#fff",
+  borderRadius: 8,
+  padding: "8px 12px",
   fontWeight: 600,
 };
 
-const cartBtn = {
-  position: "relative",
-  background: "none",
+const primaryBtn = {
   border: "none",
-  fontSize: 18,
-};
-
-const cartBadge = {
-  position: "absolute",
-  top: -6,
-  right: -8,
-  background: "#ef4444",
-  color: "#fff",
-  borderRadius: "50%",
-  fontSize: 11,
-  padding: "2px 6px",
-};
-
-const cartTotalTxt = { fontSize: 13, fontWeight: 600 };
-
-const adminBtn = {
   background: "#111827",
   color: "#fff",
-  border: "none",
-  padding: "6px 10px",
   borderRadius: 8,
-};
-
-const suggestBox = {
-  background: "#fff",
-  border: "1px solid #e5e7eb",
-  borderRadius: 10,
-  marginTop: 4,
-  boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
-};
-
-const suggestItem = {
-  padding: "10px 12px",
-  cursor: "pointer",
-  borderBottom: "1px solid #f3f4f6",
+  padding: "8px 12px",
+  fontWeight: 700,
 };
