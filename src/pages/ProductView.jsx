@@ -178,18 +178,9 @@ export default function ProductView({
               boxShadow: "0 2px 6px rgba(0,0,0,0.06)",
               cursor: "pointer",
             }}
+            className="mini-product-card"
           >
-            <div
-              style={{
-                height: 90,
-                background: "#f3f4f6",
-                borderRadius: 8,
-                marginBottom: 6,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
+            <div className="mini-product-thumb">
               {p.image ? (
                 <img
                   src={p.image}
