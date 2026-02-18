@@ -105,6 +105,10 @@ function handleCheckout() {
     total,
   };
 
+  saveOrders(newOrder).catch((err) => {
+    console.error("Failed to save order to API", err);
+  });
+
   setOrders(prev => [...prev, newOrder]);
 
   // Clear cart
@@ -255,11 +259,6 @@ useEffect(() => {
     setOrdersLoaded(true); // 🔑 VERY IMPORTANT
   });
 }, []);
-
-useEffect(() => {
-  if (!ordersLoaded) return; // 🔒 block early overwrite
-  saveOrders(orders);
-}, [orders, ordersLoaded]);
 
 //cart
 useEffect(() => {

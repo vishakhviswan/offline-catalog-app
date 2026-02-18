@@ -1,98 +1,111 @@
-import { openDB } from "idb";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ||
+  "https://offline-catalog-backend-production.up.railway.app";
 
-export const dbPromise = openDB("catalog-db", 3, {
-  upgrade(db) {
+async function requestJson(path, options = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
 
-    // ---------- CATEGORIES ----------
-    if (!db.objectStoreNames.contains("categories")) {
-      db.createObjectStore("categories");
-    }
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API request failed (${res.status}): ${text}`);
+  }
 
-    // ---------- PRODUCTS ----------
-    if (!db.objectStoreNames.contains("products")) {
-      db.createObjectStore("products");
-    }
-
-    // ---------- ORDERS ----------
-    if (!db.objectStoreNames.contains("orders")) {
-      db.createObjectStore("orders", { keyPath: "id" });
-    }
-
-    // ---------- CUSTOMERS ----------
-    if (!db.objectStoreNames.contains("customers")) {
-      db.createObjectStore("customers");
-    }
-
-    // ---------- UNITS ----------
-    if (!db.objectStoreNames.contains("units")) {
-      db.createObjectStore("units");
-    }
-  },
-});
-
-/* ================= CATEGORIES ================= */
-
-export async function saveCategories(categories) {
-  const db = await dbPromise;
-  await db.put("categories", categories, "list");
+  if (res.status === 204) return null;
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
-export async function loadCategories() {
-  const db = await dbPromise;
-  return (await db.get("categories", "list")) || [];
+function asArray(payload, key) {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+  if (Array.isArray(payload[key])) return payload[key];
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload.items)) return payload.items;
+  return [];
 }
 
-/* ================= PRODUCTS ================= */
+function normalizeCategory(c) {
+  return {
+    id: String(c.id ?? c._id ?? c.category_id ?? c.value ?? ""),
+    name: c.name ?? c.category_name ?? c.label ?? "Unknown",
+  };
+}
 
-export async function saveProducts(products) {
-  const db = await dbPromise;
-  await db.put("products", products, "list");
+function normalizeProduct(p) {
+  const units = Array.isArray(p.units) && p.units.length
+    ? p.units.map((u) => ({
+        name: u.name ?? u.unit_name ?? "Piece",
+        multiplier: Number(u.multiplier ?? u.value ?? 1),
+      }))
+    : [{
+        name: p.unit_name ?? p.unit ?? "Piece",
+        multiplier: Number(p.unit_multiplier ?? 1),
+      }];
+
+  return {
+    id: p.id ?? p._id ?? p.product_id,
+    name: p.name ?? p.product_name ?? "Unnamed",
+    price: Number(p.price ?? p.base_price ?? 0),
+    categoryId: String(p.categoryId ?? p.category_id ?? p.category ?? ""),
+    image: p.image ?? p.image_url ?? null,
+    units,
+  };
+}
+
+function normalizeOrder(o) {
+  return {
+    id: o.id ?? o._id ?? Date.now(),
+    customer: o.customer ?? o.customer_name ?? "Unknown",
+    date: o.date ?? o.created_at ?? new Date().toISOString(),
+    items: o.items ?? o.order_items ?? [],
+    total: Number(o.total ?? o.grand_total ?? 0),
+  };
+}
+
+function normalizeCustomer(c) {
+  return {
+    id: c.id ?? c._id ?? Date.now(),
+    name: c.name ?? c.customer_name ?? "Unknown",
+  };
 }
 
 export async function loadProducts() {
-  const db = await dbPromise;
-  return (await db.get("products", "list")) || [];
+  const payload = await requestJson("/api/products");
+  return asArray(payload, "products").map(normalizeProduct);
 }
 
-/* ================= ORDERS ================= */
-
-export async function saveOrders(orders) {
-  const db = await dbPromise;
-  const tx = db.transaction("orders", "readwrite");
-  const store = tx.objectStore("orders");
-
-  await store.clear(); // ✅ important
-  for (const o of orders) {
-    await store.put(o);
-  }
-
-  await tx.done;
+export async function loadCategories() {
+  const payload = await requestJson("/api/categories");
+  return asArray(payload, "categories").map(normalizeCategory);
 }
 
 export async function loadOrders() {
-  const db = await dbPromise;
-  return await db.getAll("orders");
-}
-
-// ---------- CUSTOMERS ----------
-export async function saveCustomers(customers) {
-  const db = await dbPromise;
-  await db.put("customers", customers, "list");
+  const payload = await requestJson("/api/orders");
+  return asArray(payload, "orders").map(normalizeOrder);
 }
 
 export async function loadCustomers() {
-  const db = await dbPromise;
-  return (await db.get("customers", "list")) || [];
+  const payload = await requestJson("/api/customers");
+  return asArray(payload, "customers").map(normalizeCustomer);
 }
 
-// ---------- UNITS ----------
-export async function saveUnits(units) {
-  const db = await dbPromise;
-  await db.put("units", units, "list");
+export async function saveOrders(order) {
+  if (!order) return null;
+  return await requestJson("/api/orders", {
+    method: "POST",
+    body: JSON.stringify(order),
+  });
 }
 
-export async function loadUnits() {
-  const db = await dbPromise;
-  return (await db.get("units", "list")) || [];
-}
-
+// Not supported by the current Railway API contract.
+export async function saveProducts() { return null; }
+export async function saveCategories() { return null; }
+export async function saveCustomers() { return null; }
+export async function loadUnits() { return []; }
+export async function saveUnits() { return null; }
