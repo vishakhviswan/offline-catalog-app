@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 
 export default function ProductView({
   product,
@@ -10,73 +10,44 @@ export default function ProductView({
   onBack,
   onChangeProduct,
 }) {
+  const categoryProducts = product
+    ? products.filter((p) => p.categoryId === product.categoryId)
+    : [];
+  const currentIndex = categoryProducts.findIndex((p) => p.id === product?.id);
+  const prevProduct = currentIndex > 0 ? categoryProducts[currentIndex - 1] : null;
+  const nextProduct =
+    currentIndex < categoryProducts.length - 1 ? categoryProducts[currentIndex + 1] : null;
+
+  const cartItem = cart.find((c) => c.productId === product?.id);
+  const [selectedUnitName, setSelectedUnitName] = useState("");
+  const touchStartX = useRef(0);
+
   if (!product) return null;
 
-  /* ================= CATEGORY PRODUCTS ================= */
-
-  const categoryProducts = products.filter(
-    (p) => p.categoryId === product.categoryId
-  );
-
-  const currentIndex = categoryProducts.findIndex(
-    (p) => p.id === product.id
-  );
-
-  const prevProduct =
-    currentIndex > 0 ? categoryProducts[currentIndex - 1] : null;
-
-  const nextProduct =
-    currentIndex < categoryProducts.length - 1
-      ? categoryProducts[currentIndex + 1]
-      : null;
-
-  const cartItem = cart.find(
-    (c) => c.productId === product.id
-  );
-
-  /* ================= UNIT STATE (IMPORTANT) ================= */
-
-  const [selectedUnit, setSelectedUnit] = useState(
-    product.units?.[0]
-  );
-
-  // 🔁 RESET UNIT WHEN PRODUCT CHANGES
-  useEffect(() => {
-    if (product?.units?.length) {
-      setSelectedUnit(product.units[0]);
-    }
-  }, [product]);
-
-  /* ================= SWIPE ================= */
-
-  const touchStartX = useRef(0);
+  const selectedUnit =
+    product.units?.find((u) => u.name === selectedUnitName) || product.units?.[0];
 
   function onTouchStart(e) {
     touchStartX.current = e.touches[0].clientX;
   }
 
   function onTouchEnd(e) {
-    const diff =
-      e.changedTouches[0].clientX - touchStartX.current;
-
+    const diff = e.changedTouches[0].clientX - touchStartX.current;
     if (diff < -60 && nextProduct) {
+      setSelectedUnitName("");
       onChangeProduct(nextProduct);
     }
 
     if (diff > 60 && prevProduct) {
+      setSelectedUnitName("");
       onChangeProduct(prevProduct);
     }
   }
 
-  /* ================= UI ================= */
-
   return (
-    <div style={{ padding: 16, paddingBottom: 110 }}>
+    <div style={{ padding: 16, paddingBottom: 110, maxWidth: 980, margin: "0 auto" }}>
+      <button onClick={onBack} style={backBtn}>⬅ Back</button>
 
-      {/* BACK */}
-      <button onClick={onBack}>⬅ Back</button>
-
-      {/* ================= TOP BLOCK ================= */}
       <div
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
@@ -85,31 +56,29 @@ export default function ProductView({
           background: "#fff",
           borderRadius: 16,
           padding: 16,
-          boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
+          boxShadow: "0 8px 22px rgba(0,0,0,0.12)",
         }}
       >
-        {/* IMAGE */}
         <div
           style={{
             position: "relative",
-            height: 240,
+            height: 280,
             background: "#f3f4f6",
             borderRadius: 12,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             marginBottom: 12,
+            overflow: "hidden",
           }}
         >
           {product.image ? (
             <img
               src={product.image}
               alt={product.name}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-              }}
+              loading="lazy"
+              decoding="async"
+              style={{ width: "100%", height: "100%", objectFit: "contain" }}
             />
           ) : (
             <span style={{ fontSize: 32 }}>📦</span>
@@ -117,16 +86,21 @@ export default function ProductView({
 
           {prevProduct && (
             <button
-              onClick={() => onChangeProduct(prevProduct)}
+              onClick={() => {
+                setSelectedUnitName("");
+                onChangeProduct(prevProduct);
+              }}
               style={navBtn("left")}
             >
               ◀
             </button>
           )}
-
           {nextProduct && (
             <button
-              onClick={() => onChangeProduct(nextProduct)}
+              onClick={() => {
+                setSelectedUnitName("");
+                onChangeProduct(nextProduct);
+              }}
               style={navBtn("right")}
             >
               ▶
@@ -134,30 +108,15 @@ export default function ProductView({
           )}
         </div>
 
-        {/* INFO */}
-        <h2>{product.name}</h2>
+        <h2 style={{ marginTop: 0 }}>{product.name}</h2>
 
-        {/* UNIT SELECT */}
         {product.units?.length > 1 && (
           <>
-            <div style={{ marginTop: 8, fontSize: 13 }}>
-              Select Unit
-            </div>
+            <div style={{ marginTop: 8, fontSize: 13 }}>Select Unit</div>
             <select
               value={selectedUnit?.name}
-              onChange={(e) =>
-                setSelectedUnit(
-                  product.units.find(
-                    (u) => u.name === e.target.value
-                  )
-                )
-              }
-              style={{
-                marginTop: 6,
-                padding: 8,
-                borderRadius: 8,
-                width: "100%",
-              }}
+              onChange={(e) => setSelectedUnitName(e.target.value)}
+              style={{ marginTop: 6, padding: 10, borderRadius: 8, width: "100%", border: "1px solid #d1d5db" }}
             >
               {product.units.map((u, i) => (
                 <option key={i} value={u.name}>
@@ -168,55 +127,30 @@ export default function ProductView({
           </>
         )}
 
-        {/* PRICE */}
-        <div style={{ fontWeight: 700, marginTop: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 22, marginTop: 10 }}>
           ₹{product.price * (selectedUnit?.multiplier || 1)}
         </div>
 
-        {/* CART */}
         {!cartItem ? (
-          <button
-            onClick={() =>
-              addToCart(product, selectedUnit)
-            }
-            style={addBtn}
-          >
-            Add to Cart
-          </button>
+          <button onClick={() => addToCart(product, selectedUnit)} style={addBtn}>Add to Cart</button>
         ) : (
           <div style={qtyRow}>
-            <button
-              onClick={() => decreaseQty(product.id)}
-              style={qtyBtn}
-            >
-              −
-            </button>
+            <button onClick={() => decreaseQty(product.id)} style={qtyBtn}>−</button>
             <strong>{cartItem.qty}</strong>
-            <button
-              onClick={() => increaseQty(product.id)}
-              style={qtyBtn}
-            >
-              +
-            </button>
+            <button onClick={() => increaseQty(product.id)} style={qtyBtn}>+</button>
           </div>
         )}
       </div>
 
-      {/* ================= MORE PRODUCTS ================= */}
       <h4 style={{ marginTop: 20 }}>More Products</h4>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fill, minmax(140px, 1fr))",
-          gap: 12,
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
         {categoryProducts.map((p) => (
           <div
             key={p.id}
-            onClick={() => onChangeProduct(p)}
+            onClick={() => {
+              setSelectedUnitName("");
+              onChangeProduct(p);
+            }}
             style={{
               background: "#fff",
               borderRadius: 12,
@@ -240,98 +174,34 @@ export default function ProductView({
                 <img
                   src={p.image}
                   alt={p.name}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                  }}
+                  loading="lazy"
+                  decoding="async"
+                  style={{ width: "100%", height: "100%", objectFit: "contain" }}
                 />
               ) : (
                 "📦"
               )}
             </div>
-
-            <div style={{ fontSize: 13, fontWeight: 600 }}>
-              {p.name}
-            </div>
-            <div style={{ fontSize: 12 }}>
-              ₹{p.price}
-            </div>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>{p.name}</div>
+            <div style={{ fontSize: 12 }}>₹{p.price}</div>
           </div>
         ))}
-      </div>
-
-      {/* ================= STICKY BAR ================= */}
-      <div
-        style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "#fff",
-          borderTop: "1px solid #e5e7eb",
-          padding: "12px 14px",
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          zIndex: 9999,
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, color: "#6b7280" }}>
-            {product.name}
-          </div>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>
-            ₹{product.price * (selectedUnit?.multiplier || 1)}
-          </div>
-        </div>
-
-        {!cartItem ? (
-          <button
-            onClick={() =>
-              addToCart(product, selectedUnit)
-            }
-            style={stickyBtn}
-          >
-            Add to Cart
-          </button>
-        ) : (
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              onClick={() => decreaseQty(product.id)}
-              style={qtyBtn}
-            >
-              −
-            </button>
-            <strong>{cartItem.qty}</strong>
-            <button
-              onClick={() => increaseQty(product.id)}
-              style={qtyBtn}
-            >
-              +
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
-/* ================= STYLES ================= */
+const backBtn = {
+  border: "1px solid #d1d5db",
+  background: "#fff",
+  borderRadius: 8,
+  padding: "8px 12px",
+};
 
 const addBtn = {
   width: "100%",
   marginTop: 12,
   padding: 12,
-  background: "#2563eb",
-  color: "#fff",
-  border: "none",
-  borderRadius: 10,
-  fontWeight: 600,
-};
-
-const stickyBtn = {
-  padding: "10px 16px",
   background: "#2563eb",
   color: "#fff",
   border: "none",

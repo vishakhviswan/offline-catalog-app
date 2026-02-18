@@ -1,42 +1,33 @@
 export default function Orders({ orders, onBack }) {
   return (
-    <div
-      style={{
-        padding: 16,
-        maxWidth: 900,
-        margin: "0 auto",
-      }}
-    >
-      {/* Header */}
+    <div style={{ padding: 16, maxWidth: 960, margin: "0 auto" }}>
       <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: 12,
           marginBottom: 16,
+          flexWrap: "wrap",
         }}
       >
-        <button onClick={onBack}>⬅ Back</button>
+        <button onClick={onBack} style={backBtn}>⬅ Back</button>
         <h2 style={{ margin: 0 }}>Orders History</h2>
       </div>
 
-      {orders.length === 0 && (
-        <p style={{ color: "#6b7280" }}>No orders yet</p>
-      )}
+      {orders.length === 0 && <p style={{ color: "#6b7280" }}>No orders yet</p>}
 
       {orders
         .slice()
         .reverse()
-        .map((o,index) => (
+        .map((o, index) => (
           <div
             key={o.id}
             style={{
-              //background: "#fff",
               background: o.total > 2000 ? "#ecfeff" : "#fff",
-              borderRadius: 12,
+              borderRadius: 14,
               padding: 14,
               marginBottom: 12,
-              boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+              boxShadow: "0 6px 14px rgba(0,0,0,0.08)",
             }}
           >
             <div
@@ -44,6 +35,8 @@ export default function Orders({ orders, onBack }) {
                 display: "flex",
                 justifyContent: "space-between",
                 marginBottom: 6,
+                gap: 8,
+                flexWrap: "wrap",
               }}
             >
               <strong>#{orders.length - index} - {o.customer}</strong>
@@ -65,6 +58,8 @@ export default function Orders({ orders, onBack }) {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                gap: 10,
+                flexWrap: "wrap",
               }}
             >
               <strong>Total: ₹{o.total}</strong>
@@ -81,19 +76,9 @@ export default function Orders({ orders, onBack }) {
 
                   msg += `------------------\nTotal Amount: ₹${o.total}`;
 
-                  window.open(
-                    `https://wa.me/?text=${encodeURIComponent(msg)}`,
-                    "_blank"
-                  );
+                  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
                 }}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: "#25D366",
-                  color: "#fff",
-                  fontSize: 13,
-                }}
+                style={waBtn}
               >
                 WhatsApp
               </button>
@@ -103,3 +88,20 @@ export default function Orders({ orders, onBack }) {
     </div>
   );
 }
+
+const backBtn = {
+  border: "1px solid #d1d5db",
+  background: "#fff",
+  borderRadius: 8,
+  padding: "8px 12px",
+};
+
+const waBtn = {
+  padding: "8px 12px",
+  borderRadius: 8,
+  border: "none",
+  background: "#25D366",
+  color: "#fff",
+  fontSize: 13,
+  fontWeight: 700,
+};
