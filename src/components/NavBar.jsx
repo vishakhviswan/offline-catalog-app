@@ -1,67 +1,36 @@
+import { Link } from "react-router-dom";
 import CustomerSelect from "./CustomerSelect";
 
 export default function NavBar({
-  search,
-  setSearch,
   cartCount,
   cartTotal,
   customerName,
   setCustomerName,
   customers,
   setCustomers,
-  onCartClick,
-  onOrdersClick,
-  onAdminClick,
-  products,
-  setViewProduct,
 }) {
-  const suggestions =
-    search.length > 0
-      ? products
-          .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
-          .slice(0, 6)
-      : [];
-
   return (
-    <div className="top-nav-shell">
-      <div className="top-nav-row">
-        <div>
-          <div className="top-nav-brand">Mangalya Agencies</div>
-          <div className="top-nav-sub">Sales Catalog</div>
-        </div>
+    <div
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+        background: "#fff",
+        borderBottom: "1px solid #e5e7eb",
+        padding: 12,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+        <Link to="/" style={{ textDecoration: "none", color: "inherit" }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#2563eb" }}>Mangalya Agencies</div>
+          <div style={{ fontSize: 11, color: "#6b7280" }}>Sales Catalog</div>
+        </Link>
 
-        <div className="top-nav-actions">
-          <button onClick={onOrdersClick} className="btn-soft">Orders</button>
-          <button onClick={onCartClick} className="btn-primary-dark">
-            🛒 {cartCount > 0 ? `(${cartCount})` : ""} ₹{cartTotal}
-          </button>
-          <button onClick={onAdminClick} className="btn-soft">Admin</button>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <Link to="/orders">Orders</Link>
+          <span style={{ fontWeight: 600 }}>🛒 {cartCount} | ₹{cartTotal}</span>
         </div>
       </div>
-
-      <input
-        placeholder="🔍 Search products..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="search-input"
-      />
-
-      {suggestions.length > 0 && (
-        <div className="suggestions-box">
-          {suggestions.map((p) => (
-            <div
-              key={p.id}
-              onClick={() => {
-                setViewProduct(p);
-                setSearch("");
-              }}
-              className="suggestion-item"
-            >
-              {p.name} – ₹{p.price}
-            </div>
-          ))}
-        </div>
-      )}
 
       <CustomerSelect
         customers={customers}
