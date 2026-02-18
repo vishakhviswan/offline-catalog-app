@@ -56,6 +56,7 @@ export default function Orders({ orders }) {
                   justifyContent: "space-between",
                   alignItems: "center",
                 }}
+                style={waBtn}
               >
                 <strong>Total: ₹{o.total}</strong>
 
@@ -91,3 +92,20 @@ export default function Orders({ orders }) {
     </div>
   );
 }
+
+const backBtn = {
+  border: "1px solid #d1d5db",
+  background: "#fff",
+  borderRadius: 8,
+  padding: "8px 12px",
+};
+
+const waBtn = {
+  padding: "8px 12px",
+  borderRadius: 8,
+  border: "none",
+  background: "#25D366",
+  color: "#fff",
+  fontSize: 13,
+  fontWeight: 700,
+};

@@ -66,8 +66,7 @@ export default function Catalog({
             key={c.id}
             onClick={() => setSelectedCategory(c.id)}
             style={{
-              margin: 4,
-              padding: "10px 16px",
+              padding: "9px 14px",
               borderRadius: 999,
               border: "none",
               fontSize: 14,

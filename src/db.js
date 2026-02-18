@@ -1,98 +1,65 @@
-import { openDB } from "idb";
+const API_BASE_URL = "https://offline-catalog-backend-production.up.railway.app";
 
-export const dbPromise = openDB("catalog-db", 3, {
-  upgrade(db) {
+async function requestJson(path, options = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
 
-    // ---------- CATEGORIES ----------
-    if (!db.objectStoreNames.contains("categories")) {
-      db.createObjectStore("categories");
-    }
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`API request failed (${res.status}): ${text}`);
+  }
 
-    // ---------- PRODUCTS ----------
-    if (!db.objectStoreNames.contains("products")) {
-      db.createObjectStore("products");
-    }
-
-    // ---------- ORDERS ----------
-    if (!db.objectStoreNames.contains("orders")) {
-      db.createObjectStore("orders", { keyPath: "id" });
-    }
-
-    // ---------- CUSTOMERS ----------
-    if (!db.objectStoreNames.contains("customers")) {
-      db.createObjectStore("customers");
-    }
-
-    // ---------- UNITS ----------
-    if (!db.objectStoreNames.contains("units")) {
-      db.createObjectStore("units");
-    }
-  },
-});
-
-/* ================= CATEGORIES ================= */
-
-export async function saveCategories(categories) {
-  const db = await dbPromise;
-  await db.put("categories", categories, "list");
-}
-
-export async function loadCategories() {
-  const db = await dbPromise;
-  return (await db.get("categories", "list")) || [];
-}
-
-/* ================= PRODUCTS ================= */
-
-export async function saveProducts(products) {
-  const db = await dbPromise;
-  await db.put("products", products, "list");
+  if (res.status === 204) return null;
+  return await res.json();
 }
 
 export async function loadProducts() {
-  const db = await dbPromise;
-  return (await db.get("products", "list")) || [];
+  return (await requestJson("/api/products")) || [];
 }
 
-/* ================= ORDERS ================= */
-
-export async function saveOrders(orders) {
-  const db = await dbPromise;
-  const tx = db.transaction("orders", "readwrite");
-  const store = tx.objectStore("orders");
-
-  await store.clear(); // ✅ important
-  for (const o of orders) {
-    await store.put(o);
-  }
-
-  await tx.done;
+export async function loadCategories() {
+  return (await requestJson("/api/categories")) || [];
 }
 
 export async function loadOrders() {
-  const db = await dbPromise;
-  return await db.getAll("orders");
-}
-
-// ---------- CUSTOMERS ----------
-export async function saveCustomers(customers) {
-  const db = await dbPromise;
-  await db.put("customers", customers, "list");
+  return (await requestJson("/api/orders")) || [];
 }
 
 export async function loadCustomers() {
-  const db = await dbPromise;
-  return (await db.get("customers", "list")) || [];
+  return (await requestJson("/api/customers")) || [];
 }
 
-// ---------- UNITS ----------
-export async function saveUnits(units) {
-  const db = await dbPromise;
-  await db.put("units", units, "list");
+export async function saveOrders(order) {
+  if (!order) return null;
+
+  return await requestJson("/api/orders", {
+    method: "POST",
+    body: JSON.stringify(order),
+  });
+}
+
+// Not supported by the Railway API contract yet.
+export async function saveProducts() {
+  return null;
+}
+
+export async function saveCategories() {
+  return null;
+}
+
+export async function saveCustomers() {
+  return null;
 }
 
 export async function loadUnits() {
-  const db = await dbPromise;
-  return (await db.get("units", "list")) || [];
+  return [];
 }
 
+export async function saveUnits() {
+  return null;
+}

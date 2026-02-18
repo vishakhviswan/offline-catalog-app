@@ -85,19 +85,20 @@ export default function ProductView({
           background: "#fff",
           borderRadius: 16,
           padding: 16,
-          boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
+          boxShadow: "0 8px 22px rgba(0,0,0,0.12)",
         }}
       >
         <div
           style={{
             position: "relative",
-            height: 240,
+            height: 280,
             background: "#f3f4f6",
             borderRadius: 12,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             marginBottom: 12,
+            overflow: "hidden",
           }}
         >
           {product.image ? (
