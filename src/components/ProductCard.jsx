@@ -129,7 +129,7 @@ function ProductCard({
         {product.name}
       </Typography>
 
-      {orderMode && units.length > 1 && (
+      {units.length > 1 && (
         <FormControl size="small" fullWidth>
           <Select
             value={selectedUnit.name}
