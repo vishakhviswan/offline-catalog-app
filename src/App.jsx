@@ -1,10 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import Catalog from "./pages/Catalog";
-import ProductView from "./pages/ProductView";
-import NavBar from "./components/NavBar";
-import CartSheet from "./components/CartSheet";
-import Orders from "./pages/Orders";
-import FilterDrawer from "./components/FilterDrawer";
+import { useState, useEffect, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import AppRoutes from "./AppRoutes";
 
 function App() {
   /* ================= CORE STATE ================= */
@@ -13,7 +9,6 @@ function App() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [products, setProducts] = useState([]);
 
-  const [viewProduct, setViewProduct] = useState(null);
   const [savedScrollY, setSavedScrollY] = useState(0);
 
   const [cart, setCart] = useState([]);
@@ -23,8 +18,6 @@ function App() {
   const [customerName, setCustomerName] = useState("");
 
   const [orders, setOrders] = useState([]);
-  const [showOrders, setShowOrders] = useState(false);
-
   const [search, setSearch] = useState("");
   const [showCart, setShowCart] = useState(false);
 
@@ -40,18 +33,30 @@ function App() {
   const [sortOption, setSortOption] = useState("default");
   const [layoutMode, setLayoutMode] = useState("grid-3");
 
+  const navigate = useNavigate();
+  const location = useLocation();
+
   /* ================= SCROLL RESTORE ================= */
 
   const openProduct = (product) => {
     setSavedScrollY(window.scrollY);
-    setViewProduct(product);
+    navigate(`/product/${product.id}`);
   };
 
   const handleBackFromProduct = () => {
-    setViewProduct(null);
+    navigate("/");
     setTimeout(() => {
       window.scrollTo(0, savedScrollY);
     }, 0);
+  };
+
+  const openOrders = () => {
+    if (location.pathname === "/orders") {
+      navigate("/");
+      return;
+    }
+
+    navigate("/orders");
   };
 
 
@@ -291,103 +296,49 @@ const salesMap = useMemo(() => {
   //     setSelectedCategory(categories[0].id);
   //   }
   // }, [categories, selectedCategory]);
-  /* ================= ROUTING ================= */
-
-  if (viewProduct) {
-    return (
-      <ProductView
-        product={viewProduct}
-        products={products}
-        cart={cart}
-        addToCart={addToCart}
-        increaseQty={increaseQty}
-        decreaseQty={decreaseQty}
-        onBack={handleBackFromProduct}
-        onChangeProduct={openProduct}
-      />
-    );
-  }
-
-if (showOrders) {
   return (
-    <Orders
+    <AppRoutes
+      search={search}
+      setSearch={setSearch}
+      cart={cart}
+      cartTotal={cartTotal}
+      customerName={customerName}
+      setCustomerName={setCustomerName}
+      customers={customers}
+      setCustomers={setCustomers}
+      products={products}
+      openProduct={openProduct}
+      setShowCart={setShowCart}
+      setFilterOpen={setFilterOpen}
+      categories={categories}
+      selectedCategory={selectedCategory}
+      setSelectedCategory={setSelectedCategory}
+      addToCart={addToCart}
+      increaseQty={increaseQty}
+      decreaseQty={decreaseQty}
       orders={orders}
-      onBack={() => setShowOrders(false)}
-      onDeleteOrder={handleDeleteOrder}
+      orderMode={orderMode}
+      setOrderMode={setOrderMode}
+      imageFilter={imageFilter}
+      sortOption={sortOption}
+      layoutMode={layoutMode}
+      showOutOfStock={showOutOfStock}
+      setShowOutOfStock={setShowOutOfStock}
+      mostSellingOnly={mostSellingOnly}
+      setMostSellingOnly={setMostSellingOnly}
+      salesMap={salesMap}
+      showCart={showCart}
+      removeFromCart={removeFromCart}
+      updateCartItem={updateCartItem}
+      handleCheckout={handleCheckout}
+      filterOpen={filterOpen}
+      setImageFilter={setImageFilter}
+      setSortOption={setSortOption}
+      setLayoutMode={setLayoutMode}
+      handleBackFromProduct={handleBackFromProduct}
+      handleDeleteOrder={handleDeleteOrder}
+      openOrders={openOrders}
     />
-  );
-}
-
-
-  /* ================= UI ================= */
-
-  return (
-    <>
-      <NavBar
-        search={search}
-        setSearch={setSearch}
-        cartCount={cart.length}
-        cartTotal={cartTotal}
-        customerName={customerName}
-        setCustomerName={setCustomerName}
-        customers={customers}
-        setCustomers={setCustomers}
-        products={products}
-        setViewProduct={openProduct}
-        onCartClick={() => setShowCart(true)}
-        onOrdersClick={() => setShowOrders(true)}
-        onFilterClick={() => setFilterOpen(true)}
-      />
-
-      <Catalog
-        categories={categories}
-        selectedCategory={selectedCategory}
-        setSelectedCategory={setSelectedCategory}
-        products={products}
-        setViewProduct={openProduct}
-        cart={cart}
-        addToCart={addToCart}
-        increaseQty={increaseQty}
-        decreaseQty={decreaseQty}
-        search={search}
-        orders={orders}
-        customerName={customerName}
-        orderMode={orderMode}
-        setOrderMode={setOrderMode}
-        imageFilter={imageFilter}
-        sortOption={sortOption}
-        layoutMode={layoutMode}
-        showOutOfStock={showOutOfStock}
-        setShowOutOfStock={setShowOutOfStock}
-        mostSellingOnly={mostSellingOnly}
-        setMostSellingOnly={setMostSellingOnly}
-        salesMap={salesMap}
-      />
-
-      {showCart && (
-        <CartSheet
-          cart={cart}
-          increaseQty={increaseQty}
-          decreaseQty={decreaseQty}
-          removeFromCart={removeFromCart}
-          updateCartItem={updateCartItem}
-          customerName={customerName}
-          onClose={() => setShowCart(false)}
-          onCheckout={handleCheckout}
-        />
-      )}
-
-      <FilterDrawer
-        open={filterOpen}
-        onClose={() => setFilterOpen(false)}
-        imageFilter={imageFilter}
-        setImageFilter={setImageFilter}
-        sortOption={sortOption}
-        setSortOption={setSortOption}
-        layoutMode={layoutMode}
-        setLayoutMode={setLayoutMode}
-      />
-    </>
   );
 }
 
