@@ -1,15 +1,16 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppRoutes from "./AppRoutes";
 
-function App() {
-  /* ================= CORE STATE ================= */
+const API_BASE = "https://offline-catalog-backend-production.up.railway.app/api";
 
+function App() {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [products, setProducts] = useState([]);
 
-  const [savedScrollY, setSavedScrollY] = useState(0);
+  const savedScrollYRef = useRef(0);
+  const hasFetchedRef = useRef(false);
 
   const [cart, setCart] = useState([]);
   const [cartLoaded, setCartLoaded] = useState(false);
@@ -24,8 +25,6 @@ function App() {
   const [showOutOfStock, setShowOutOfStock] = useState(true);
   const [mostSellingOnly, setMostSellingOnly] = useState(false);
 
-  /* ================= NEW STATES ================= */
-
   const [orderMode, setOrderMode] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
 
@@ -36,58 +35,51 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  /* ================= SCROLL RESTORE ================= */
+  const openProduct = useCallback(
+    (product) => {
+      savedScrollYRef.current = window.scrollY;
+      navigate(`/product/${product.id}`);
+    },
+    [navigate],
+  );
 
-  const openProduct = (product) => {
-    setSavedScrollY(window.scrollY);
-    navigate(`/product/${product.id}`);
-  };
-
-  const handleBackFromProduct = () => {
+  const handleBackFromProduct = useCallback(() => {
     navigate("/");
     setTimeout(() => {
-      window.scrollTo(0, savedScrollY);
+      window.scrollTo(0, savedScrollYRef.current);
     }, 0);
-  };
+  }, [navigate]);
 
-  const openOrders = () => {
+  const openOrders = useCallback(() => {
     if (location.pathname === "/orders") {
       navigate("/");
       return;
     }
 
     navigate("/orders");
-  };
+  }, [location.pathname, navigate]);
 
-
-
-  async function handleCheckout() {
+  const handleCheckout = useCallback(async () => {
     if (cart.length === 0) return;
 
     try {
-      /* ================= SAVE TO DB ================= */
-      const response = await fetch(
-        "https://offline-catalog-backend-production.up.railway.app/api/orders",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            customer_id: null,
-            customer_name: customerName || "Walk-in",
-            items: cart,
-          }),
+      const response = await fetch(`${API_BASE}/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          customer_id: null,
+          customer_name: customerName || "Walk-in",
+          items: cart,
+        }),
+      });
 
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || "Order save failed");
       }
-
-      /* ================= WHATSAPP MESSAGE ================= */
 
       let msg = `*MANGALYA AGENCIES*\n\n`;
       msg += `Customer: ${customerName || "Walk-in"}\n\n`;
@@ -108,12 +100,8 @@ function App() {
 
       msg += `------------------\nTotal: ₹${grandTotal}`;
 
-      /* ================= OPEN WHATSAPP ================= */
-
       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
       window.open(whatsappUrl, "_blank");
-
-      /* ================= CLEAR CART ================= */
 
       setCart([]);
       setCustomerName("");
@@ -123,55 +111,49 @@ function App() {
       console.error("Checkout error:", err);
       alert("Order save failed ❌");
     }
-  }
+  }, [cart, customerName]);
 
-async function handleDeleteOrder(orderId) {
-  try {
-    const res = await fetch(
-      `https://offline-catalog-backend-production.up.railway.app/api/orders/${orderId}`,
-      {
+  const handleDeleteOrder = useCallback(async (orderId) => {
+    try {
+      const res = await fetch(`${API_BASE}/orders/${orderId}`, {
         method: "DELETE",
-      },
-    );
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      throw new Error(data.error || "Delete failed");
+      if (!res.ok) {
+        throw new Error(data.error || "Delete failed");
+      }
+
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Delete failed ❌");
     }
+  }, []);
 
-    // 🔥 remove instantly from UI
-    setOrders((prev) => prev.filter((o) => o.id !== orderId));
-  } catch (err) {
-    console.error("Delete error:", err);
-    alert("Delete failed ❌");
-  }
-}
-
-  /* ================= CART HELPERS ================= */
-
-  function addToCart(product, unit) {
+  const addToCart = useCallback((product, unit) => {
     const safeUnit =
       unit ||
       (product.units?.length
         ? product.units[0]
         : { name: "pcs", multiplier: 1 });
 
-    const existing = cart.find(
-      (c) => c.productId === product.id && c.unitName === safeUnit.name,
-    );
+    setCart((prev) => {
+      const existing = prev.find(
+        (c) => c.productId === product.id && c.unitName === safeUnit.name,
+      );
 
-    if (existing) {
-      setCart(
-        cart.map((c) =>
+      if (existing) {
+        return prev.map((c) =>
           c.productId === product.id && c.unitName === safeUnit.name
             ? { ...c, qty: c.qty + 1 }
             : c,
-        ),
-      );
-    } else {
-      setCart([
-        ...cart,
+        );
+      }
+
+      return [
+        ...prev,
         {
           productId: product.id,
           name: product.name,
@@ -180,11 +162,11 @@ async function handleDeleteOrder(orderId) {
           unitMultiplier: safeUnit.multiplier,
           qty: 1,
         },
-      ]);
-    }
-  }
+      ];
+    });
+  }, []);
 
-  function increaseQty(productId, unitName) {
+  const increaseQty = useCallback((productId, unitName) => {
     setCart((prev) =>
       prev.map((c) =>
         c.productId === productId && c.unitName === unitName
@@ -192,9 +174,9 @@ async function handleDeleteOrder(orderId) {
           : c,
       ),
     );
-  }
+  }, []);
 
-  function decreaseQty(productId, unitName) {
+  const decreaseQty = useCallback((productId, unitName) => {
     setCart((prev) =>
       prev
         .map((c) =>
@@ -204,17 +186,17 @@ async function handleDeleteOrder(orderId) {
         )
         .filter((c) => c.qty > 0),
     );
-  }
+  }, []);
 
-  function removeFromCart(productId, unitName) {
+  const removeFromCart = useCallback((productId, unitName) => {
     setCart((prev) =>
       prev.filter(
         (c) => !(c.productId === productId && c.unitName === unitName),
       ),
     );
-  }
+  }, []);
 
-  function updateCartItem(productId, unitName, changes) {
+  const updateCartItem = useCallback((productId, unitName, changes) => {
     setCart((prev) =>
       prev.map((c) =>
         c.productId === productId && c.unitName === unitName
@@ -222,34 +204,33 @@ async function handleDeleteOrder(orderId) {
           : c,
       ),
     );
-  }
+  }, []);
 
-  const cartTotal = cart.reduce(
-    (s, i) => s + i.qty * i.price * i.unitMultiplier,
-    0,
+  const cartTotal = useMemo(
+    () => cart.reduce((s, i) => s + i.qty * i.price * i.unitMultiplier, 0),
+    [cart],
   );
 
-  /* ================= DATA LOADERS ================= */
-const salesMap = useMemo(() => {
-  const map = {};
+  const salesMap = useMemo(() => {
+    const map = {};
 
-  orders.forEach((order) => {
-    order.order_items?.forEach((item) => {
-      map[item.product_id] =
-        (map[item.product_id] || 0) + Number(item.qty || 0);
+    orders.forEach((order) => {
+      order.order_items?.forEach((item) => {
+        map[item.product_id] = (map[item.product_id] || 0) + Number(item.qty || 0);
+      });
     });
-  });
 
-  return map;
-}, [orders]);
-
+    return map;
+  }, [orders]);
 
   useEffect(() => {
     const saved = localStorage.getItem("cart");
     if (saved) {
       try {
         setCart(JSON.parse(saved));
-      } catch {}
+      } catch {
+        console.error("Invalid cart in storage");
+      }
     }
     setCartLoaded(true);
   }, []);
@@ -260,42 +241,33 @@ const salesMap = useMemo(() => {
   }, [cart, cartLoaded]);
 
   useEffect(() => {
-    fetch(
-      "https://offline-catalog-backend-production.up.railway.app/api/categories",
-    )
-      .then((r) => r.json())
-      .then((d) => setCategories(Array.isArray(d) ? d : []));
+    if (hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+
+    const controller = new AbortController();
+    const signal = controller.signal;
+
+    Promise.all([
+      fetch(`${API_BASE}/categories`, { signal }).then((r) => r.json()),
+      fetch(`${API_BASE}/products`, { signal }).then((r) => r.json()),
+      fetch(`${API_BASE}/customers`, { signal }).then((r) => r.json()),
+      fetch(`${API_BASE}/orders`, { signal }).then((r) => r.json()),
+    ])
+      .then(([categoriesData, productsData, customersData, ordersData]) => {
+        setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+        setProducts(Array.isArray(productsData) ? productsData : []);
+        setCustomers(Array.isArray(customersData) ? customersData : []);
+        setOrders(Array.isArray(ordersData) ? ordersData : []);
+      })
+      .catch((error) => {
+        if (error.name !== "AbortError") {
+          console.error("Initial data load failed", error);
+        }
+      });
+
+    return () => controller.abort();
   }, []);
 
-  useEffect(() => {
-    fetch(
-      "https://offline-catalog-backend-production.up.railway.app/api/products",
-    )
-      .then((r) => r.json())
-      .then((d) => setProducts(Array.isArray(d) ? d : []));
-  }, []);
-
-  useEffect(() => {
-    fetch(
-      "https://offline-catalog-backend-production.up.railway.app/api/customers",
-    )
-      .then((r) => r.json())
-      .then((d) => setCustomers(Array.isArray(d) ? d : []));
-  }, []);
-
-  useEffect(() => {
-    fetch(
-      "https://offline-catalog-backend-production.up.railway.app/api/orders",
-    )
-      .then((r) => r.json())
-      .then((data) => setOrders(data || []));
-  }, []);
-
-  // useEffect(() => {
-  //   if (categories.length > 0 && !selectedCategory) {
-  //     setSelectedCategory(categories[0].id);
-  //   }
-  // }, [categories, selectedCategory]);
   return (
     <AppRoutes
       search={search}

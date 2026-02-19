@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { memo, useState, useMemo, useEffect } from "react";
 
 export function normalizeUnits(units) {
   if (!Array.isArray(units)) {
@@ -12,7 +12,7 @@ export function normalizeUnits(units) {
   return valid.length ? valid : [{ name: "pcs", multiplier: 1 }];
 }
 
-export default function ProductCard({
+function ProductCard({
   product,
   cart = [],
   onView,
@@ -27,11 +27,8 @@ export default function ProductCard({
 
   const units = normalizeUnits(product.units);
 
-  // 🔥 Layout detection INSIDE component
-  const isList = layoutMode === "list";
   const isSmall = layoutMode === "grid-4";
   const isMedium = layoutMode === "grid-3";
-  const isLarge = layoutMode === "grid-2";
 
   const [selectedUnit, setSelectedUnit] = useState(units[0]);
 
@@ -71,7 +68,6 @@ export default function ProductCard({
         filter: out ? "grayscale(100%)" : "none",
       }}
     >
-      {/* IMAGE */}
       <div
         style={{
           width: "100%",
@@ -80,7 +76,7 @@ export default function ProductCard({
           borderRadius: isSmall ? 10 : 14,
           overflow: "hidden",
           cursor: "pointer",
-          position: "relative", // 🔥 IMPORTANT
+          position: "relative",
         }}
         onClick={() => onView?.(product)}
       >
@@ -88,6 +84,7 @@ export default function ProductCard({
           <img
             src={product.images[0]}
             alt={product.name}
+            loading="lazy"
             style={{
               width: "100%",
               height: "100%",
@@ -109,7 +106,6 @@ export default function ProductCard({
           </div>
         )}
 
-        {/* 🔥 OUT OF STOCK BADGE */}
         {out && (
           <div
             style={{
@@ -129,7 +125,6 @@ export default function ProductCard({
         )}
       </div>
 
-      {/* NAME */}
       <div
         style={{
           fontWeight: 700,
@@ -142,7 +137,6 @@ export default function ProductCard({
         {product.name}
       </div>
 
-      {/* PRICE */}
       <div
         style={{
           fontWeight: 800,
@@ -156,7 +150,6 @@ export default function ProductCard({
         </span>
       </div>
 
-      {/* ORDER MODE CONTROLS */}
       {orderMode && !activeCartItem && (
         <button
           onClick={() => onAdd?.(product, selectedUnit)}
@@ -219,3 +212,5 @@ export default function ProductCard({
     </div>
   );
 }
+
+export default memo(ProductCard);

@@ -1,8 +1,8 @@
 import { Box, Button, Typography } from "@mui/material";
 import ProductCard from "../components/ProductCard";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
-export default function Catalog({
+function Catalog({
   categories = [],
   selectedCategory,
   setSelectedCategory,
@@ -12,7 +12,6 @@ export default function Catalog({
   increaseQty,
   decreaseQty,
   setViewProduct,
-  setOrderMode,
   imageFilter,
   sortOption,
   layoutMode,
@@ -95,24 +94,6 @@ export default function Catalog({
     return sorted;
   }, [products, salesMap]);
 
-  /* ================= RESPONSIVE GRID ================= */
-
-  const getGridColumns = (screen) => {
-    if (layoutMode === "list") return "1fr";
-
-    if (screen === "xs") return "repeat(2, 1fr)";
-    if (screen === "sm") return "repeat(3, 1fr)";
-    if (screen === "md") {
-      if (layoutMode === "grid-2") return "repeat(2, 1fr)";
-      if (layoutMode === "grid-4") return "repeat(4, 1fr)";
-      return "repeat(3, 1fr)";
-    }
-    if (screen === "lg") {
-      if (layoutMode === "grid-2") return "repeat(2, 1fr)";
-      if (layoutMode === "grid-4") return "repeat(4, 1fr)";
-      return "repeat(4, 1fr)";
-    }
-  };
 
   return (
     <Box
@@ -384,3 +365,5 @@ export default function Catalog({
     </Box>
   );
 }
+
+export default memo(Catalog);

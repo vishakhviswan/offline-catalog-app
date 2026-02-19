@@ -1,13 +1,22 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, useNavigate, useParams } from "react-router-dom";
-import Catalog from "./pages/Catalog";
-import ProductView from "./pages/ProductView";
-import Orders from "./pages/Orders";
 import NavBar from "./components/NavBar";
 import CartSheet from "./components/CartSheet";
 import FilterDrawer from "./components/FilterDrawer";
 
-function ProductRoute({ products, cart, addToCart, increaseQty, decreaseQty, onBack, onChangeProduct }) {
+const Catalog = lazy(() => import("./pages/Catalog"));
+const ProductView = lazy(() => import("./pages/ProductView"));
+const Orders = lazy(() => import("./pages/Orders"));
+
+function ProductRoute({
+  products,
+  cart,
+  addToCart,
+  increaseQty,
+  decreaseQty,
+  onBack,
+  onChangeProduct,
+}) {
   const { id } = useParams();
   const navigate = useNavigate();
   const product = products.find((p) => String(p.id) === id);
@@ -79,97 +88,101 @@ function AppRoutes(props) {
   } = props;
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <>
-            <NavBar
-              search={search}
-              setSearch={setSearch}
-              cartCount={cart.length}
-              cartTotal={cartTotal}
-              customerName={customerName}
-              setCustomerName={setCustomerName}
-              customers={customers}
-              setCustomers={setCustomers}
-              products={products}
-              setViewProduct={openProduct}
-              onCartClick={() => setShowCart(true)}
-              onOrdersClick={openOrders}
-              onFilterClick={() => setFilterOpen(true)}
-            />
+    <Suspense fallback={null}>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <>
+              <NavBar
+                search={search}
+                setSearch={setSearch}
+                cartCount={cart.length}
+                cartTotal={cartTotal}
+                customerName={customerName}
+                setCustomerName={setCustomerName}
+                customers={customers}
+                setCustomers={setCustomers}
+                products={products}
+                setViewProduct={openProduct}
+                onCartClick={() => setShowCart(true)}
+                onOrdersClick={openOrders}
+                onFilterClick={() => setFilterOpen(true)}
+              />
 
-            <Catalog
-              categories={categories}
-              selectedCategory={selectedCategory}
-              setSelectedCategory={setSelectedCategory}
+              <Catalog
+                categories={categories}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                products={products}
+                setViewProduct={openProduct}
+                cart={cart}
+                addToCart={addToCart}
+                increaseQty={increaseQty}
+                decreaseQty={decreaseQty}
+                search={search}
+                orderMode={orderMode}
+                setOrderMode={setOrderMode}
+                imageFilter={imageFilter}
+                sortOption={sortOption}
+                layoutMode={layoutMode}
+                showOutOfStock={showOutOfStock}
+                setShowOutOfStock={setShowOutOfStock}
+                mostSellingOnly={mostSellingOnly}
+                setMostSellingOnly={setMostSellingOnly}
+                salesMap={salesMap}
+              />
+
+              {showCart && (
+                <CartSheet
+                  cart={cart}
+                  removeFromCart={removeFromCart}
+                  updateCartItem={updateCartItem}
+                  customerName={customerName}
+                  onClose={() => setShowCart(false)}
+                  onCheckout={handleCheckout}
+                />
+              )}
+
+              <FilterDrawer
+                open={filterOpen}
+                onClose={() => setFilterOpen(false)}
+                imageFilter={imageFilter}
+                setImageFilter={setImageFilter}
+                sortOption={sortOption}
+                setSortOption={setSortOption}
+                layoutMode={layoutMode}
+                setLayoutMode={setLayoutMode}
+              />
+            </>
+          }
+        />
+        <Route
+          path="/product/:id"
+          element={
+            <ProductRoute
               products={products}
-              setViewProduct={openProduct}
               cart={cart}
               addToCart={addToCart}
               increaseQty={increaseQty}
               decreaseQty={decreaseQty}
-              search={search}
+              onBack={handleBackFromProduct}
+              onChangeProduct={openProduct}
+            />
+          }
+        />
+        <Route
+          path="/orders"
+          element={
+            <Orders
               orders={orders}
-              customerName={customerName}
-              orderMode={orderMode}
-              setOrderMode={setOrderMode}
-              imageFilter={imageFilter}
-              sortOption={sortOption}
-              layoutMode={layoutMode}
-              showOutOfStock={showOutOfStock}
-              setShowOutOfStock={setShowOutOfStock}
-              mostSellingOnly={mostSellingOnly}
-              setMostSellingOnly={setMostSellingOnly}
-              salesMap={salesMap}
+              onBack={openOrders}
+              onDeleteOrder={handleDeleteOrder}
             />
-
-            {showCart && (
-              <CartSheet
-                cart={cart}
-                increaseQty={increaseQty}
-                decreaseQty={decreaseQty}
-                removeFromCart={removeFromCart}
-                updateCartItem={updateCartItem}
-                customerName={customerName}
-                onClose={() => setShowCart(false)}
-                onCheckout={handleCheckout}
-              />
-            )}
-
-            <FilterDrawer
-              open={filterOpen}
-              onClose={() => setFilterOpen(false)}
-              imageFilter={imageFilter}
-              setImageFilter={setImageFilter}
-              sortOption={sortOption}
-              setSortOption={setSortOption}
-              layoutMode={layoutMode}
-              setLayoutMode={setLayoutMode}
-            />
-          </>
-        }
-      />
-      <Route
-        path="/product/:id"
-        element={
-          <ProductRoute
-            products={products}
-            cart={cart}
-            addToCart={addToCart}
-            increaseQty={increaseQty}
-            decreaseQty={decreaseQty}
-            onBack={handleBackFromProduct}
-            onChangeProduct={openProduct}
-          />
-        }
-      />
-      <Route
-        path="/orders"
-        element={<Orders orders={orders} onBack={openOrders} onDeleteOrder={handleDeleteOrder} />}
-      />
-    </Routes>
+          }
+        />
+      </Routes>
+    </Suspense>
   );
 }
 
