@@ -18,6 +18,7 @@ function App() {
 
   const [customers, setCustomers] = useState([]);
   const [customerName, setCustomerName] = useState("");
+  const [showCustomerHistory, setShowCustomerHistory] = useState(false);
 
   const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState("");
@@ -225,6 +226,30 @@ function App() {
     return map;
   }, [orders]);
 
+  const customerHistoryProducts = useMemo(() => {
+    if (!customerName) return [];
+
+    const productIds = new Set();
+
+    orders
+      .filter((order) => order.customer_name === customerName)
+      .forEach((order) => {
+        order.order_items?.forEach((item) => {
+          if (item.product_id != null) {
+            productIds.add(item.product_id);
+          }
+        });
+      });
+
+    return products.filter((product) => productIds.has(product.id));
+  }, [customerName, orders, products]);
+
+  useEffect(() => {
+    if (!customerName && showCustomerHistory) {
+      setShowCustomerHistory(false);
+    }
+  }, [customerName, showCustomerHistory]);
+
   useEffect(() => {
     const saved = localStorage.getItem("cart");
     if (saved) {
@@ -271,6 +296,9 @@ function App() {
       cartTotal={cartTotal}
       customerName={customerName}
       setCustomerName={setCustomerName}
+      showCustomerHistory={showCustomerHistory}
+      setShowCustomerHistory={setShowCustomerHistory}
+      customerHistoryProducts={customerHistoryProducts}
       customers={customers}
       setCustomers={setCustomers}
       products={products}

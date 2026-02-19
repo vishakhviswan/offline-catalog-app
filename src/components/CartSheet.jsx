@@ -116,24 +116,46 @@ export default function CartSheet({
                 <Typography>×</Typography>
 
                 {/* QTY */}
-                <TextField
-                  label="Qty"
-                  value={c.qty ?? ""}
-                  inputMode="numeric"
-                  onChange={(e) =>
-                    updateCartItem(c.productId, c.unitName, {
-                      qty: e.target.value,
-                    })
-                  }
-                  onBlur={(e) => {
-                    const val = Number(e.target.value);
-                    updateCartItem(c.productId, c.unitName, {
-                      qty: val > 0 ? val : 1,
-                    });
-                  }}
-                  size="small"
-                  sx={{ width: 80 }}
-                />
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <IconButton
+                    size="small"
+                    onClick={() =>
+                      updateCartItem(c.productId, c.unitName, {
+                        qty: Math.max(1, Number(c.qty || 1) - 1),
+                      })
+                    }
+                  >
+                    −
+                  </IconButton>
+                  <TextField
+                    label="Qty"
+                    value={c.qty ?? ""}
+                    inputMode="numeric"
+                    onChange={(e) =>
+                      updateCartItem(c.productId, c.unitName, {
+                        qty: e.target.value,
+                      })
+                    }
+                    onBlur={(e) => {
+                      const val = Number(e.target.value);
+                      updateCartItem(c.productId, c.unitName, {
+                        qty: val > 0 ? val : 1,
+                      });
+                    }}
+                    size="small"
+                    sx={{ width: 72 }}
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={() =>
+                      updateCartItem(c.productId, c.unitName, {
+                        qty: Number(c.qty || 0) + 1,
+                      })
+                    }
+                  >
+                    +
+                  </IconButton>
+                </Stack>
 
                 {/* ITEM TOTAL */}
                 <Typography
