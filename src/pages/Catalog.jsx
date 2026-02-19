@@ -23,27 +23,26 @@ function Catalog({
   mostSellingOnly,
   setMostSellingOnly,
   salesMap = {},
+  customerName,
+  showCustomerHistory,
+  setShowCustomerHistory,
+  customerHistoryProducts = [],
 }) {
-  /* ================= FILTER + SORT ================= */
-
   const filtered = useMemo(() => {
     let list = [...products];
 
-    // CATEGORY
     if (selectedCategory && selectedCategory !== "all") {
       list = list.filter(
         (p) => (p.category_id || p.categoryId) === selectedCategory,
       );
     }
 
-    // SEARCH
     if (search) {
       list = list.filter((p) =>
         p.name?.toLowerCase().includes(search.toLowerCase()),
       );
     }
 
-    // IMAGE FILTER
     if (imageFilter === "with") {
       list = list.filter((p) => p.images?.length);
     }
@@ -52,17 +51,14 @@ function Catalog({
       list = list.filter((p) => !p.images?.length);
     }
 
-    // MOST SELLING
     if (mostSellingOnly) {
       list = list.filter((p) => (salesMap[p.id] ?? 0) > 0);
     }
 
-    // OUT OF STOCK
     if (!showOutOfStock) {
       list = list.filter((p) => (p.stock ?? 0) > 0);
     }
 
-    // SORT
     if (sortOption === "price-low") {
       list.sort((a, b) => a.price - b.price);
     }
@@ -84,17 +80,28 @@ function Catalog({
     sortOption,
     mostSellingOnly,
     showOutOfStock,
+    salesMap,
   ]);
 
   const topSelling = useMemo(() => {
-    const sorted = [...products]
+    return [...products]
       .filter((p) => (salesMap[p.id] ?? 0) > 0)
       .sort((a, b) => (salesMap[b.id] ?? 0) - (salesMap[a.id] ?? 0))
-      .slice(0, 10); // top 10 only
-
-    return sorted;
+      .slice(0, 10);
   }, [products, salesMap]);
 
+  const customerHistoryMap = useMemo(() => {
+    const map = new Map();
+    customerHistoryProducts.forEach((product) => {
+      map.set(product.id, product);
+    });
+    return map;
+  }, [customerHistoryProducts]);
+
+  const displayProducts = useMemo(() => {
+    if (!showCustomerHistory) return filtered;
+    return filtered.filter((product) => customerHistoryMap.has(product.id));
+  }, [filtered, showCustomerHistory, customerHistoryMap]);
 
   return (
     <Box
@@ -106,8 +113,6 @@ function Catalog({
         pb: 10,
       }}
     >
-      {/* ================= TOP FILTER CONTROLS ================= */}
-
       <Box
         sx={{
           display: "flex",
@@ -117,7 +122,6 @@ function Catalog({
           flexWrap: "wrap",
         }}
       >
-        {/* Show Out Of Stock Toggle */}
         <Button
           variant={showOutOfStock ? "contained" : "outlined"}
           onClick={() => setShowOutOfStock(!showOutOfStock)}
@@ -130,7 +134,6 @@ function Catalog({
           {showOutOfStock ? "Hide Out of Stock" : "Show Out of Stock"}
         </Button>
 
-        {/* Most Selling Toggle */}
         <Button
           variant={mostSellingOnly ? "contained" : "outlined"}
           onClick={() => setMostSellingOnly(!mostSellingOnly)}
@@ -142,9 +145,21 @@ function Catalog({
         >
           {mostSellingOnly ? "Showing Most Selling" : "Most Selling"}
         </Button>
-      </Box>
 
-      {/* ================= CATEGORIES ================= */}
+        {!!customerName && (
+          <Button
+            variant={showCustomerHistory ? "contained" : "outlined"}
+            onClick={() => setShowCustomerHistory(!showCustomerHistory)}
+            sx={{
+              textTransform: "none",
+              borderRadius: 999,
+              fontWeight: 600,
+            }}
+          >
+            Show Previous Orders
+          </Button>
+        )}
+      </Box>
 
       {categories.length > 0 && (
         <Box
@@ -180,7 +195,6 @@ function Catalog({
               "&::-webkit-scrollbar": { display: "none" },
             }}
           >
-            {/* ALL BUTTON */}
             <Button
               variant={selectedCategory === "all" ? "contained" : "outlined"}
               onClick={() => setSelectedCategory("all")}
@@ -215,7 +229,7 @@ function Catalog({
         </Box>
       )}
 
-      {topSelling.length > 0 && !mostSellingOnly && (
+      {topSelling.length > 0 && !mostSellingOnly && !showCustomerHistory && (
         <Box sx={{ mb: 4 }}>
           <Typography
             sx={{
@@ -256,14 +270,13 @@ function Catalog({
                   orderMode={orderMode}
                   layoutMode="grid-2"
                   out={(p.stock ?? 0) <= 0}
+                  salesCount={salesMap[p.id] ?? 0}
                 />
               </Box>
             ))}
           </Box>
         </Box>
       )}
-
-      {/* ================= PRODUCT GRID ================= */}
 
       <Box
         sx={{
@@ -316,7 +329,7 @@ function Catalog({
           },
         }}
       >
-        {filtered.map((p) => (
+        {displayProducts.map((p) => (
           <ProductCard
             key={p.id}
             product={p}
@@ -325,14 +338,13 @@ function Catalog({
             onAdd={addToCart}
             onInc={increaseQty}
             onDec={decreaseQty}
-            orderMode={orderMode}
+            orderMode={showCustomerHistory ? false : orderMode}
             layoutMode={layoutMode}
             out={(p.stock ?? 0) <= 0}
+            salesCount={salesMap[p.id] ?? 0}
           />
         ))}
       </Box>
-
-      {/* ================= FLOATING MODE BUTTON ================= */}
 
       <Box
         sx={{
