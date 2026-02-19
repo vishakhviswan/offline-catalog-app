@@ -83,6 +83,32 @@ function App() {
         throw new Error(data.error || "Order save failed");
       }
 
+      const createdOrder =
+        data?.order ||
+        data?.data || {
+          id: data?.id || `local-${Date.now()}`,
+          customer_name: customerName || "Walk-in",
+          created_at: new Date().toISOString(),
+          total: cart.reduce(
+            (sum, item) =>
+              sum +
+              Number(item.qty || 0) *
+                Number(item.price || 0) *
+                Number(item.unitMultiplier || 1),
+            0,
+          ),
+          order_items: cart.map((item) => ({
+            product_id: item.productId,
+            product_name: item.name,
+            qty: Number(item.qty || 0),
+            unit_name: item.unitName,
+            unit_multiplier: Number(item.unitMultiplier || 1),
+            price: Number(item.price || 0),
+          })),
+        };
+
+      setOrders((prev) => [createdOrder, ...prev]);
+
       let msg = `*MANGALYA AGENCIES*\n\n`;
       msg += `Customer: ${customerName || "Walk-in"}\n\n`;
 
