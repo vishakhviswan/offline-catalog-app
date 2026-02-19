@@ -51,6 +51,9 @@ function AppRoutes(props) {
     cartTotal,
     customerName,
     setCustomerName,
+    showCustomerHistory,
+    setShowCustomerHistory,
+    customerHistoryProducts,
     customers,
     setCustomers,
     products,
@@ -131,6 +134,10 @@ function AppRoutes(props) {
                 mostSellingOnly={mostSellingOnly}
                 setMostSellingOnly={setMostSellingOnly}
                 salesMap={salesMap}
+                customerName={customerName}
+                showCustomerHistory={showCustomerHistory}
+                setShowCustomerHistory={setShowCustomerHistory}
+                customerHistoryProducts={customerHistoryProducts}
               />
 
               {showCart && (

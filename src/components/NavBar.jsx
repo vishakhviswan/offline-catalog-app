@@ -9,6 +9,7 @@ import {
   InputBase,
   Paper,
   Stack,
+  Chip,
 } from "@mui/material";
 
 import SearchIcon from "@mui/icons-material/Search";
@@ -44,63 +45,91 @@ function NavBar({
       .slice(0, 6);
   }, [search, products]);
 
-
-
-
-
   return (
     <AppBar
       position="sticky"
       elevation={0}
-      sx={{ background: "#fff", color: "#000" }}
+      sx={{
+        background:
+          "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(244,253,251,0.95) 100%)",
+        color: "#0f172a",
+        borderBottom: "1px solid rgba(148,163,184,0.2)",
+        backdropFilter: "blur(8px)",
+      }}
     >
-      <Toolbar sx={{ flexDirection: "column", gap: 1 }}>
-        {/* TOP ROW */}
+      <Toolbar sx={{ flexDirection: "column", gap: 1.2, py: 1 }}>
         <Box
           sx={{
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "center",
             width: "100%",
           }}
         >
-          <Typography fontWeight={900}>🧹 Mangalya Agencies</Typography>
+          <Box>
+            <Typography fontWeight={900} sx={{ letterSpacing: 0.2 }}>
+              🧹 Mangalya Agencies
+            </Typography>
+            <Typography fontSize={12} color="text.secondary">
+              Smart Offline Catalog
+            </Typography>
+          </Box>
 
-          <Stack direction="row" spacing={1}>
-            <IconButton onClick={onOrdersClick}>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <IconButton onClick={onOrdersClick} sx={{ background: "rgba(148,163,184,0.12)" }}>
               <Inventory2Icon />
             </IconButton>
 
-            <IconButton onClick={onFilterClick}>
+            <IconButton onClick={onFilterClick} sx={{ background: "rgba(148,163,184,0.12)" }}>
               <TuneIcon />
             </IconButton>
 
-            <IconButton onClick={onCartClick}>
+            <IconButton onClick={onCartClick} sx={{ background: "rgba(20,184,166,0.12)" }}>
               <Badge badgeContent={cartCount} color="error">
                 <ShoppingCartIcon />
               </Badge>
             </IconButton>
 
-            <Typography fontWeight={800} color="green">
-              ₹{cartTotal}
-            </Typography>
+            <Chip
+              label={`₹${cartTotal}`}
+              color="success"
+              size="small"
+              sx={{ fontWeight: 800 }}
+            />
           </Stack>
         </Box>
 
-        {/* SEARCH */}
         <Box sx={{ width: "100%", position: "relative" }}>
           {!searchOpen ? (
             <Paper
               onClick={() => setSearchOpen(true)}
-              sx={{ p: 1.2, cursor: "pointer" }}
+              sx={{
+                p: 1.2,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 0.8,
+                borderRadius: 3,
+                border: "1px solid rgba(148,163,184,0.25)",
+              }}
             >
               <SearchIcon fontSize="small" /> Search products
             </Paper>
           ) : (
-            <Paper sx={{ p: 1.2, display: "flex", alignItems: "center" }}>
+            <Paper
+              sx={{
+                p: 1.2,
+                display: "flex",
+                alignItems: "center",
+                borderRadius: 3,
+                border: "1px solid rgba(20,184,166,0.35)",
+              }}
+            >
               <InputBase
                 autoFocus
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search products"
                 sx={{ flex: 1 }}
               />
               <IconButton
@@ -122,6 +151,8 @@ function NavBar({
                 left: 0,
                 right: 0,
                 zIndex: 50,
+                borderRadius: 2,
+                overflow: "hidden",
               }}
             >
               {suggestions.map((p) => (
@@ -132,7 +163,11 @@ function NavBar({
                     setSearch("");
                     setSearchOpen(false);
                   }}
-                  sx={{ p: 1, cursor: "pointer" }}
+                  sx={{
+                    p: 1,
+                    cursor: "pointer",
+                    "&:hover": { background: "rgba(148,163,184,0.12)" },
+                  }}
                 >
                   {p.name} – ₹{p.price}
                 </Box>
@@ -141,7 +176,6 @@ function NavBar({
           )}
         </Box>
 
-        
         <CustomerSelect
           customers={customers}
           setCustomers={setCustomers}

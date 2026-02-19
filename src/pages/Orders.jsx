@@ -10,15 +10,56 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
+  MenuItem,
 } from "@mui/material";
 import WhatsAppIcon from "@mui/icons-material/WhatsApp";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 export default function Orders({ orders = [], onBack, onDeleteOrder }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [searchText, setSearchText] = useState("");
+  const [sortBy, setSortBy] = useState("latest");
+
+  const visibleOrders = useMemo(() => {
+    let list = [...orders];
+
+    if (searchText.trim()) {
+      const query = searchText.trim().toLowerCase();
+      list = list.filter((o) =>
+        (o.customer_name || "Walk-in").toLowerCase().includes(query),
+      );
+    }
+
+    if (sortBy === "latest") {
+      list.sort(
+        (a, b) =>
+          new Date(b.created_at || 0).getTime() -
+          new Date(a.created_at || 0).getTime(),
+      );
+    }
+
+    if (sortBy === "oldest") {
+      list.sort(
+        (a, b) =>
+          new Date(a.created_at || 0).getTime() -
+          new Date(b.created_at || 0).getTime(),
+      );
+    }
+
+    if (sortBy === "high-amount") {
+      list.sort((a, b) => Number(b.total || 0) - Number(a.total || 0));
+    }
+
+    if (sortBy === "low-amount") {
+      list.sort((a, b) => Number(a.total || 0) - Number(b.total || 0));
+    }
+
+    return list;
+  }, [orders, searchText, sortBy]);
 
   const handleDeleteClick = (id) => {
     setSelectedOrderId(id);
@@ -35,7 +76,6 @@ export default function Orders({ orders = [], onBack, onDeleteOrder }) {
 
   return (
     <Box sx={{ px: 2, pb: 6, maxWidth: 900, mx: "auto" }}>
-      {/* HEADER */}
       <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
         <Button
           startIcon={<ArrowBackIcon />}
@@ -51,14 +91,37 @@ export default function Orders({ orders = [], onBack, onDeleteOrder }) {
         </Typography>
       </Stack>
 
-      {orders.length === 0 && (
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} mb={2}>
+        <TextField
+          fullWidth
+          size="small"
+          label="Search customer"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+        />
+        <TextField
+          select
+          size="small"
+          label="Sort"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          sx={{ minWidth: { xs: "100%", sm: 190 } }}
+        >
+          <MenuItem value="latest">Latest</MenuItem>
+          <MenuItem value="oldest">Oldest</MenuItem>
+          <MenuItem value="high-amount">High Amount</MenuItem>
+          <MenuItem value="low-amount">Low Amount</MenuItem>
+        </TextField>
+      </Stack>
+
+      {visibleOrders.length === 0 && (
         <Card sx={{ p: 3, textAlign: "center" }}>
-          <Typography color="text.secondary">No orders yet</Typography>
+          <Typography color="text.secondary">No matching orders</Typography>
         </Card>
       )}
 
       <Stack spacing={2}>
-        {orders.map((o, index) => {
+        {visibleOrders.map((o, index) => {
           const isHighValue = Number(o.total || 0) > 2000;
 
           return (
@@ -72,7 +135,6 @@ export default function Orders({ orders = [], onBack, onDeleteOrder }) {
                   : "#ffffff",
               }}
             >
-              {/* HEADER */}
               <Stack
                 direction="row"
                 justifyContent="space-between"
@@ -81,7 +143,7 @@ export default function Orders({ orders = [], onBack, onDeleteOrder }) {
               >
                 <Box>
                   <Typography fontWeight={800}>
-                    #{orders.length - index} – {o.customer_name || "Walk-in"}
+                    #{visibleOrders.length - index} – {o.customer_name || "Walk-in"}
                   </Typography>
                   <Typography fontSize={12} color="text.secondary">
                     {new Date(o.created_at).toLocaleString()}
@@ -106,22 +168,16 @@ export default function Orders({ orders = [], onBack, onDeleteOrder }) {
 
               <Divider sx={{ my: 1 }} />
 
-              {/* ITEMS */}
               <Stack spacing={0.6} mb={1}>
                 {(o.order_items || []).map((it, i) => (
                   <Typography key={i} fontSize={14}>
-                    {i + 1}. {it.product_name} —{" "}
-                    <b>
-                      {it.qty} {it.unit_name}
-                    </b>{" "}
-                    × ₹{it.price}
+                    {i + 1}. {it.product_name} — <b>{it.qty} {it.unit_name}</b> × ₹{it.price}
                   </Typography>
                 ))}
               </Stack>
 
               <Divider sx={{ my: 1 }} />
 
-              {/* FOOTER */}
               <Stack
                 direction="row"
                 justifyContent="space-between"
@@ -171,7 +227,6 @@ export default function Orders({ orders = [], onBack, onDeleteOrder }) {
         })}
       </Stack>
 
-      {/* CONFIRM DIALOG */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>Delete Order?</DialogTitle>
         <DialogContent>
