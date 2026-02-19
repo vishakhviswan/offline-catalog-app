@@ -17,6 +17,7 @@ function Catalog({
   layoutMode,
   search,
   orderMode,
+  setOrderMode,
   showOutOfStock,
   setShowOutOfStock,
   mostSellingOnly,

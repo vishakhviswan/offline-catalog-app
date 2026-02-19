@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppRoutes from "./AppRoutes";
 
-const API_BASE = "https://offline-catalog-backend-production.up.railway.app/api";
+const API_BASE =
+  "https://offline-catalog-backend-production.up.railway.app/api";
 
 function App() {
   const [categories, setCategories] = useState([]);
@@ -216,7 +217,8 @@ function App() {
 
     orders.forEach((order) => {
       order.order_items?.forEach((item) => {
-        map[item.product_id] = (map[item.product_id] || 0) + Number(item.qty || 0);
+        map[item.product_id] =
+          (map[item.product_id] || 0) + Number(item.qty || 0);
       });
     });
 
@@ -244,14 +246,11 @@ function App() {
     if (hasFetchedRef.current) return;
     hasFetchedRef.current = true;
 
-    const controller = new AbortController();
-    const signal = controller.signal;
-
     Promise.all([
-      fetch(`${API_BASE}/categories`, { signal }).then((r) => r.json()),
-      fetch(`${API_BASE}/products`, { signal }).then((r) => r.json()),
-      fetch(`${API_BASE}/customers`, { signal }).then((r) => r.json()),
-      fetch(`${API_BASE}/orders`, { signal }).then((r) => r.json()),
+      fetch(`${API_BASE}/categories`).then((r) => r.json()),
+      fetch(`${API_BASE}/products`).then((r) => r.json()),
+      fetch(`${API_BASE}/customers`).then((r) => r.json()),
+      fetch(`${API_BASE}/orders`).then((r) => r.json()),
     ])
       .then(([categoriesData, productsData, customersData, ordersData]) => {
         setCategories(Array.isArray(categoriesData) ? categoriesData : []);
@@ -260,12 +259,8 @@ function App() {
         setOrders(Array.isArray(ordersData) ? ordersData : []);
       })
       .catch((error) => {
-        if (error.name !== "AbortError") {
-          console.error("Initial data load failed", error);
-        }
+        console.error("Initial data load failed", error);
       });
-
-    return () => controller.abort();
   }, []);
 
   return (
