@@ -6,8 +6,7 @@ import {
   IconButton,
   Button,
   TextField,
-  Card,
-  Divider,
+  Card
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -106,8 +105,8 @@ export default function CartSheet({
                   }
                   onBlur={(e) => {
                     const val = Number(e.target.value);
-                    updateCartItem(c.productId, {
-                      price: val > 0 ? val : 0,
+                    updateCartItem(c.productId, c.unitName, {
+                      price: val > 0 ? val / (c.unitMultiplier || 1) : 0,
                     });
                   }}
                   size="small"
@@ -122,13 +121,13 @@ export default function CartSheet({
                   value={c.qty ?? ""}
                   inputMode="numeric"
                   onChange={(e) =>
-                    updateCartItem(c.productId, {
-                      qty: e.target.value, // 🔥 allow empty
+                    updateCartItem(c.productId, c.unitName, {
+                      qty: e.target.value,
                     })
                   }
                   onBlur={(e) => {
                     const val = Number(e.target.value);
-                    updateCartItem(c.productId, {
+                    updateCartItem(c.productId, c.unitName, {
                       qty: val > 0 ? val : 1,
                     });
                   }}

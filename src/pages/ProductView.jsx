@@ -134,6 +134,7 @@ export default function ProductView({
           <img
             src={product.images[0]}
             alt={product.name}
+            loading="lazy"
             style={{
               width: "100%",
               height: "100%",
@@ -222,6 +223,7 @@ export default function ProductView({
                     <img
                       src={p.images[0]}
                       alt={p.name}
+                      loading="lazy"
                       style={{
                         width: "100%",
                         height: "100%",
@@ -308,6 +310,7 @@ export default function ProductView({
           <img
             src={product.images?.[0]}
             alt={product.name}
+            loading="lazy"
             style={{
               maxWidth: "100%",
               maxHeight: "100%",

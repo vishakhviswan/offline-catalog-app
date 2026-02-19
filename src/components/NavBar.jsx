@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { memo, useState, useMemo } from "react";
 import {
   AppBar,
   Toolbar,
@@ -19,7 +19,7 @@ import TuneIcon from "@mui/icons-material/Tune";
 
 import CustomerSelect from "./CustomerSelect";
 
-export default function NavBar({
+function NavBar({
   search,
   setSearch,
   cartCount,
@@ -152,3 +152,5 @@ export default function NavBar({
     </AppBar>
   );
 }
+
+export default memo(NavBar);
