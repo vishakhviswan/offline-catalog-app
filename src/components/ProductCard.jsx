@@ -1,6 +1,6 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 
-export function normalizeUnits(units) {
+function normalizeUnits(units) {
   if (!Array.isArray(units)) {
     return [{ name: "pcs", multiplier: 1 }];
   }
@@ -22,41 +22,37 @@ export default function ProductCard({
   orderMode = false,
   layoutMode = "grid-3",
   out = false,
+  topBadge,
+  metaInfo,
 }) {
-  if (!product) return null;
+  const safeProduct = product || { id: null, units: [], price: 0, name: "" };
 
-  const units = normalizeUnits(product.units);
-
-  // 🔥 Layout detection INSIDE component
-  const isList = layoutMode === "list";
+  const units = normalizeUnits(safeProduct.units);
   const isSmall = layoutMode === "grid-4";
   const isMedium = layoutMode === "grid-3";
-  const isLarge = layoutMode === "grid-2";
+  const [isHover, setIsHover] = useState(false);
+  const selectedUnit = units[0];
 
-  const [selectedUnit, setSelectedUnit] = useState(units[0]);
+  const canHoverDesktop =
+    typeof window !== "undefined" &&
+    window.matchMedia("(min-width: 900px) and (hover: hover)").matches;
 
   const activeCartItem = useMemo(() => {
     return cart.find(
-      (c) => c.productId === product.id && c.unitName === selectedUnit.name,
+      (c) => c.productId === safeProduct.id && c.unitName === selectedUnit.name,
     );
-  }, [cart, product.id, selectedUnit]);
-
-  useEffect(() => {
-    const existing = cart.find((c) => c.productId === product.id);
-    if (existing) {
-      const matched = units.find((u) => u.name === existing.unitName);
-      if (matched && matched.name !== selectedUnit.name) {
-        setSelectedUnit(matched);
-      }
-    }
-  }, [cart, product.id, units, selectedUnit.name]);
+  }, [cart, safeProduct.id, selectedUnit]);
 
   const displayPrice = useMemo(() => {
-    return product.price * (selectedUnit.multiplier || 1);
-  }, [product.price, selectedUnit]);
+    return safeProduct.price * (selectedUnit.multiplier || 1);
+  }, [safeProduct.price, selectedUnit]);
+
+  if (!product) return null;
 
   return (
     <div
+      onMouseEnter={() => canHoverDesktop && setIsHover(true)}
+      onMouseLeave={() => setIsHover(false)}
       style={{
         background: "#fff",
         borderRadius: isSmall ? 12 : 18,
@@ -69,9 +65,10 @@ export default function ProductCard({
         minWidth: 0,
         opacity: out ? 0.5 : 1,
         filter: out ? "grayscale(100%)" : "none",
+        transform: isHover ? "scale(1.02)" : "scale(1)",
+        transition: "transform 0.2s ease, box-shadow 0.2s ease",
       }}
     >
-      {/* IMAGE */}
       <div
         style={{
           width: "100%",
@@ -80,19 +77,15 @@ export default function ProductCard({
           borderRadius: isSmall ? 10 : 14,
           overflow: "hidden",
           cursor: "pointer",
-          position: "relative", // 🔥 IMPORTANT
+          position: "relative",
         }}
-        onClick={() => onView?.(product)}
+        onClick={() => onView?.(safeProduct)}
       >
-        {product.images?.[0] ? (
+        {safeProduct.images?.[0] ? (
           <img
-            src={product.images[0]}
-            alt={product.name}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
+            src={safeProduct.images?.[0]}
+            alt={safeProduct.name}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
           <div
@@ -109,7 +102,24 @@ export default function ProductCard({
           </div>
         )}
 
-        {/* 🔥 OUT OF STOCK BADGE */}
+        {topBadge && (
+          <div
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              background: "#f59e0b",
+              color: "#111827",
+              padding: "4px 8px",
+              borderRadius: 999,
+              fontSize: 10,
+              fontWeight: 700,
+            }}
+          >
+            {topBadge}
+          </div>
+        )}
+
         {out && (
           <div
             style={{
@@ -129,7 +139,6 @@ export default function ProductCard({
         )}
       </div>
 
-      {/* NAME */}
       <div
         style={{
           fontWeight: 700,
@@ -139,32 +148,39 @@ export default function ProductCard({
           textOverflow: "ellipsis",
         }}
       >
-        {product.name}
+        {safeProduct.name}
       </div>
 
-      {/* PRICE */}
-      <div
-        style={{
-          fontWeight: 800,
-          fontSize: isSmall ? 13 : 15,
-          color: "#16a34a",
-        }}
-      >
+      <div style={{ fontWeight: 800, fontSize: isSmall ? 13 : 15, color: "#16a34a" }}>
         ₹{displayPrice.toFixed(2)}
         <span style={{ fontSize: 11, color: "#6b7280", marginLeft: 4 }}>
           / {selectedUnit.name}
         </span>
       </div>
 
-      {/* ORDER MODE CONTROLS */}
+      {metaInfo && (
+        <div
+          style={{
+            fontSize: 11,
+            color: "#6b7280",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={metaInfo}
+        >
+          {metaInfo}
+        </div>
+      )}
+
       {orderMode && !activeCartItem && (
         <button
-          onClick={() => onAdd?.(product, selectedUnit)}
+          onClick={() => onAdd?.(safeProduct, selectedUnit)}
           style={{
             padding: isSmall ? "6px 0" : "10px 0",
             borderRadius: 12,
             border: "none",
-            background: "#0EA5A4",
+            background: "#2563eb",
             color: "#fff",
             fontWeight: 700,
             fontSize: isSmall ? 12 : 14,
@@ -184,7 +200,7 @@ export default function ProductCard({
           }}
         >
           <button
-            onClick={() => onDec?.(product.id, selectedUnit.name)}
+            onClick={() => onDec?.(safeProduct.id, selectedUnit.name)}
             style={{
               width: isSmall ? 28 : 36,
               height: isSmall ? 28 : 36,
@@ -201,7 +217,7 @@ export default function ProductCard({
           <strong>{activeCartItem.qty}</strong>
 
           <button
-            onClick={() => onInc?.(product.id, selectedUnit.name)}
+            onClick={() => onInc?.(safeProduct.id, selectedUnit.name)}
             style={{
               width: isSmall ? 28 : 36,
               height: isSmall ? 28 : 36,

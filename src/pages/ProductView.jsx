@@ -1,17 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AppBar,
   Box,
-  Stack,
-  Typography,
   Button,
-  IconButton,
+  Card,
+  CardContent,
+  CardMedia,
   Chip,
+  Container,
   Dialog,
+  IconButton,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  Toolbar,
+  Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
 
-/* ================= UNIT NORMALIZER ================= */
 function normalizeUnits(units) {
   if (!Array.isArray(units)) return [{ name: "pcs", multiplier: 1 }];
   const valid = units.filter(
@@ -19,10 +27,6 @@ function normalizeUnits(units) {
   );
   return valid.length ? valid : [{ name: "pcs", multiplier: 1 }];
 }
-
-/* ======================================================
-   PRODUCT VIEW – v0.3 PREMIUM
-====================================================== */
 
 export default function ProductView({
   product,
@@ -34,57 +38,50 @@ export default function ProductView({
   onBack,
   onChangeProduct,
 }) {
-  if (!product) return null;
+  const safeProduct = product || {};
 
-  useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: "auto", // or "smooth"
-    });
-  }, []);
-
-  /* ================= CATEGORY PRODUCTS (FIXED + LOOP) ================= */
+  const units = useMemo(() => normalizeUnits(safeProduct.units), [safeProduct.units]);
+  const [selectedUnits, setSelectedUnits] = useState({});
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const touchStartX = useRef(0);
 
   const categoryProducts = useMemo(() => {
     return products.filter(
       (p) =>
-        (p.category_id || p.categoryId) ===
-        (product.category_id || product.categoryId),
+        String(p.category_id || p.categoryId) ===
+        String(safeProduct.category_id || safeProduct.categoryId),
     );
-  }, [products, product]);
+  }, [products, safeProduct.category_id, safeProduct.categoryId]);
 
-  const currentIndex = categoryProducts.findIndex((p) => p.id === product.id);
-
+  const currentIndex = categoryProducts.findIndex((p) => p.id === safeProduct.id);
   const prevProduct =
-    categoryProducts[
-      (currentIndex - 1 + categoryProducts.length) % categoryProducts.length
-    ];
+    currentIndex >= 0 && categoryProducts.length
+      ? categoryProducts[
+          (currentIndex - 1 + categoryProducts.length) % categoryProducts.length
+        ]
+      : null;
 
   const nextProduct =
-    categoryProducts[(currentIndex + 1) % categoryProducts.length];
+    currentIndex >= 0 && categoryProducts.length
+      ? categoryProducts[(currentIndex + 1) % categoryProducts.length]
+      : null;
 
-  /* ================= CART + UNIT ================= */
-  const units = normalizeUnits(product.units);
-
-  const [selectedUnit, setSelectedUnit] = useState(units[0]);
-
-  const cartItem = cart.find(
-    (c) => c.productId === product.id && c.unitName === selectedUnit.name,
-  );
-
-  const [zoomOpen, setZoomOpen] = useState(false);
 
   useEffect(() => {
-    setSelectedUnit(normalizeUnits(product.units)[0]);
-  }, [product]);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [safeProduct.id]);
 
-  const unitPrice = product.price * selectedUnit.multiplier;
+  const selectedUnitName = selectedUnits[safeProduct.id] || units[0]?.name || "pcs";
+  const selectedUnit =
+    units.find((u) => u.name === selectedUnitName) || units[0] || { name: "pcs", multiplier: 1 };
+
+  const cartItem = cart.find(
+    (c) => c.productId === safeProduct.id && c.unitName === selectedUnit.name,
+  );
+
+  const unitPrice = Number(safeProduct.price || 0) * Number(selectedUnit.multiplier || 1);
   const qty = cartItem?.qty || 1;
   const total = qty * unitPrice;
-
-  /* ================= SWIPE ================= */
-
-  const touchStartX = useRef(0);
 
   function onTouchStart(e) {
     touchStartX.current = e.touches[0].clientX;
@@ -92,228 +89,182 @@ export default function ProductView({
 
   function onTouchEnd(e) {
     const diff = e.changedTouches[0].clientX - touchStartX.current;
-    if (diff < -60) onChangeProduct(nextProduct);
-    if (diff > 60) onChangeProduct(prevProduct);
+    if (diff < -60 && nextProduct) onChangeProduct(nextProduct);
+    if (diff > 60 && prevProduct) onChangeProduct(prevProduct);
   }
 
-  /* ================= UI ================= */
+  if (!product) return null;
 
   return (
     <Box sx={{ pb: 12 }}>
-      {/* ================= IMAGE HERO ================= */}
-      <Box
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        sx={{
-          height: "65vh",
-          background: "#f3f4f6",
-          position: "relative",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-        onClick={() => setZoomOpen(true)}
-      >
-        <IconButton
-          onClick={(e) => {
-            e.stopPropagation();
-            onBack();
-          }}
-          sx={{
-            position: "absolute",
-            top: 12,
-            left: 12,
-            background: "rgba(0,0,0,0.55)",
-            color: "#fff",
-          }}
-        >
-          <ArrowBackIcon />
-        </IconButton>
-
-        {product.images?.[0] ? (
-          <img
-            src={product.images[0]}
-            alt={product.name}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-            }}
-          />
-        ) : (
-          <Typography fontSize={40}>📦</Typography>
-        )}
-      </Box>
-
-      {/* ================= INFO SHEET ================= */}
-      <Box sx={{ p: 2 }}>
-        <Typography fontSize={22} fontWeight={800}>
-          {product.name}
-        </Typography>
-
-        <Chip label="Category" size="small" sx={{ mt: 0.5, mb: 1 }} />
-
-        <Typography fontSize={20} fontWeight={800} color="primary">
-          ₹{unitPrice}{" "}
-          <Typography component="span" fontSize={13} color="text.secondary">
-            / {selectedUnit.name}
+      <AppBar position="sticky" color="inherit" elevation={0} sx={{ borderBottom: "1px solid #e5e7eb" }}>
+        <Toolbar>
+          <IconButton onClick={onBack} edge="start">
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography fontWeight={800} sx={{ ml: 1 }} noWrap>
+            {safeProduct.name}
           </Typography>
-        </Typography>
+        </Toolbar>
+      </AppBar>
 
-        {/* ================= UNIT PILLS ================= */}
-        {units.length > 1 && (
-          <Stack direction="row" spacing={1} mt={2}>
-            {units.map((u) => (
-              <Button
-                key={u.name}
-                variant={
-                  selectedUnit.name === u.name ? "contained" : "outlined"
-                }
-                onClick={() => setSelectedUnit(u)}
-                size="small"
-              >
-                {u.name}
-              </Button>
-            ))}
-          </Stack>
-        )}
-      </Box>
-
-      {/* ================= SAME CATEGORY ================= */}
-      {categoryProducts.length > 1 && (
-        <Box sx={{ px: 2 }}>
-          <Typography fontWeight={800} mb={1}>
-            More from this category
-          </Typography>
-
+      <Container maxWidth="md" sx={{ pt: 2 }}>
+        <Card sx={{ borderRadius: 3, overflow: "hidden", mb: 2 }}>
           <Box
-            sx={{
-              display: "flex",
-              gap: 1.5,
-              overflowX: "auto",
-              pb: 2,
-            }}
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+            sx={{ bgcolor: "#f9fafb", cursor: "zoom-in" }}
+            onClick={() => setZoomOpen(true)}
           >
-            {categoryProducts.map((p) => (
-              <Box
-                key={p.id}
-                sx={{
-                  minWidth: 140,
-                  background: "#fff",
-                  borderRadius: 2,
-                  p: 1,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                  cursor: "pointer",
-                }}
-                onClick={() => onChangeProduct(p)}
-              >
-                <Box
-                  sx={{
-                    height: 90,
-                    background: "#f3f4f6",
-                    borderRadius: 1,
-                    mb: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {p.images?.[0] ? (
-                    <img
-                      src={p.images[0]}
-                      alt={p.name}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "contain",
-                      }}
-                    />
-                  ) : (
-                    "📦"
-                  )}
-                </Box>
-                <Typography fontSize={13} fontWeight={700}>
-                  {p.name}
-                </Typography>
+            {safeProduct.images?.[0] ? (
+              <CardMedia
+                component="img"
+                image={safeProduct.images[0]}
+                alt={safeProduct.name}
+                sx={{ width: "100%", maxHeight: { xs: 320, md: 440 }, objectFit: "contain" }}
+              />
+            ) : (
+              <Box sx={{ height: 280, display: "grid", placeItems: "center", fontSize: 44 }}>
+                📦
               </Box>
-            ))}
+            )}
           </Box>
-        </Box>
-      )}
 
-      {/* ================= STICKY BAR ================= */}
-      <Box
+          <CardContent>
+            <Stack spacing={1.25}>
+              <Typography variant="h5" fontWeight={800}>
+                {safeProduct.name}
+              </Typography>
+
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Chip label="Category" size="small" />
+                <Typography color="text.secondary" variant="body2">
+                  Swipe image to move between same category products
+                </Typography>
+              </Stack>
+
+              <Typography fontSize={22} fontWeight={800} color="primary.main">
+                ₹{unitPrice.toFixed(2)}
+                <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
+                  / {selectedUnit.name}
+                </Typography>
+              </Typography>
+
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.2} alignItems={{ sm: "center" }}>
+                <Typography fontWeight={700}>Unit</Typography>
+                <Select
+                  size="small"
+                  value={selectedUnit.name}
+                  onChange={(e) => setSelectedUnits((prev) => ({ ...prev, [safeProduct.id]: e.target.value }))}
+                  sx={{ minWidth: 140 }}
+                >
+                  {units.map((u) => (
+                    <MenuItem key={u.name} value={u.name}>
+                      {u.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </Stack>
+            </Stack>
+          </CardContent>
+        </Card>
+
+        {categoryProducts.length > 1 && (
+          <Paper sx={{ p: 1.5, mb: 2, bgcolor: "#f9fafb" }}>
+            <Typography fontWeight={800} mb={1}>
+              More from this category
+            </Typography>
+            <Stack direction="row" spacing={1.25} sx={{ overflowX: "auto", pb: 0.5 }}>
+              {categoryProducts.map((p) => (
+                <Card
+                  key={p.id}
+                  onClick={() => onChangeProduct(p)}
+                  sx={{ minWidth: 140, cursor: "pointer", border: p.id === safeProduct.id ? "2px solid #2563eb" : "none" }}
+                >
+                  <CardMedia
+                    component="img"
+                    image={p.images?.[0] || ""}
+                    alt={p.name}
+                    sx={{ height: 90, objectFit: "contain", bgcolor: "#fff" }}
+                  />
+                  <CardContent sx={{ p: 1 }}>
+                    <Typography fontSize={13} fontWeight={700} noWrap>
+                      {p.name}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              ))}
+            </Stack>
+          </Paper>
+        )}
+      </Container>
+
+      <Paper
+        elevation={8}
         sx={{
           position: "fixed",
           bottom: 0,
           left: 0,
           right: 0,
-          background: "#fff",
           borderTop: "1px solid #e5e7eb",
-          p: 1.5,
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
+          p: 1.25,
           zIndex: 999,
         }}
       >
-        <Box flex={1}>
-          <Typography fontSize={13} color="text.secondary">
-            {qty} × ₹{unitPrice} / {selectedUnit.name}
-          </Typography>
-          <Typography fontSize={22} fontWeight={800}>
-            ₹{total}
-          </Typography>
-        </Box>
+        <Container maxWidth="md">
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="caption" color="text.secondary">
+                {qty} × ₹{unitPrice.toFixed(2)} / {selectedUnit.name}
+              </Typography>
+              <Typography fontSize={22} fontWeight={800}>
+                ₹{total.toFixed(2)}
+              </Typography>
+            </Box>
 
-        {!cartItem ? (
-          <Button
-            variant="contained"
-            size="large"
-            onClick={() => addToCart(product, selectedUnit)}
-          >
-            Add
-          </Button>
-        ) : (
-          <Stack direction="row" spacing={1}>
-            <Button onClick={() => decreaseQty(product.id, selectedUnit.name)}>
-              -
-            </Button>
-            <Typography fontWeight={700}>{cartItem.qty}</Typography>
-            <Button onClick={() => increaseQty(product.id, selectedUnit.name)}>
-              +
-            </Button>
+            {!cartItem ? (
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => addToCart(safeProduct, selectedUnit)}
+                sx={{ bgcolor: "#2563eb" }}
+              >
+                Add
+              </Button>
+            ) : (
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Button variant="outlined" onClick={() => decreaseQty(safeProduct.id, selectedUnit.name)}>
+                  -
+                </Button>
+                <Typography fontWeight={700}>{cartItem.qty}</Typography>
+                <Button variant="outlined" onClick={() => increaseQty(safeProduct.id, selectedUnit.name)}>
+                  +
+                </Button>
+              </Stack>
+            )}
           </Stack>
-        )}
-      </Box>
+        </Container>
+      </Paper>
 
-      {/* ================= ZOOM MODAL ================= */}
       <Dialog open={zoomOpen} onClose={() => setZoomOpen(false)} fullScreen>
         <IconButton
           onClick={() => setZoomOpen(false)}
-          sx={{ position: "absolute", top: 12, right: 12, color: "#fff" }}
+          sx={{ position: "absolute", top: 12, right: 12, color: "#fff", zIndex: 2 }}
         >
           <CloseIcon />
         </IconButton>
-
-        <Box
-          sx={{
-            background: "#000",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <img
-            src={product.images?.[0]}
-            alt={product.name}
-            style={{
-              maxWidth: "100%",
-              maxHeight: "100%",
-              objectFit: "contain",
-            }}
-          />
+        <Box sx={{ bgcolor: "#000", height: "100%", display: "grid", placeItems: "center" }}>
+          {safeProduct.images?.[0] ? (
+            <img
+              src={safeProduct.images[0]}
+              alt={safeProduct.name}
+              style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+            />
+          ) : (
+            <Typography color="#fff" fontSize={44}>
+              📦
+            </Typography>
+          )}
         </Box>
       </Dialog>
     </Box>
