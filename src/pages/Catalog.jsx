@@ -1,382 +1,245 @@
-import { Box, Button, Typography } from "@mui/material";
+import { useEffect, useMemo, useRef } from "react";
 import ProductCard from "../components/ProductCard";
-import { memo, useMemo } from "react";
 
-function Catalog({
-  categories = [],
+export default function Catalog({
+  categories,
   selectedCategory,
   setSelectedCategory,
-  products = [],
-  cart = [],
+  products,
+  cart,
   addToCart,
   increaseQty,
   decreaseQty,
-  setViewProduct,
-  imageFilter,
-  sortOption,
-  layoutMode,
   search,
-  orderMode,
-  setOrderMode,
+  setSearch,
+  layoutMode,
+  setLayoutMode,
   showOutOfStock,
   setShowOutOfStock,
   mostSellingOnly,
   setMostSellingOnly,
-  salesMap = {},
-  customerName,
-  showCustomerHistory,
-  setShowCustomerHistory,
-  customerHistoryProducts = [],
 }) {
-  const filtered = useMemo(() => {
-    let list = [...products];
+  const scrollRef = useRef(null);
 
-    if (selectedCategory && selectedCategory !== "all") {
-      list = list.filter(
-        (p) => (p.category_id || p.categoryId) === selectedCategory,
+  /* ================= DEFAULT CATEGORY = ALL ================= */
+
+  useEffect(() => {
+    if (!selectedCategory) {
+      setSelectedCategory("all");
+    }
+  }, [selectedCategory, setSelectedCategory]);
+
+  /* ================= CATEGORY LIST WITH ALL ================= */
+
+ const orderedCategories = useMemo(() => {
+   const base = [{ id: "all", name: "All" }, ...categories];
+
+   if (!selectedCategory || selectedCategory === "all") {
+     return base;
+   }
+
+   const selected = base.find((c) => c.id === selectedCategory);
+   const others = base.filter(
+     (c) => c.id !== selectedCategory && c.id !== "all",
+   );
+
+   return [{ id: "all", name: "All" }, selected, ...others].filter(Boolean);
+ }, [categories, selectedCategory]);
+
+  /* ================= SCROLL SELECTED INTO VIEW ================= */
+
+  useEffect(() => {
+    if (!scrollRef.current) return;
+    const activeBtn = scrollRef.current.querySelector(
+      `[data-id="${selectedCategory}"]`,
+    );
+    if (activeBtn) {
+      activeBtn.scrollIntoView({
+        behavior: "smooth",
+        inline: "start",
+        block: "nearest",
+      });
+    }
+  }, [selectedCategory]);
+
+  /* ================= FILTER ================= */
+
+  const normalizedSearch = (search || "").toLowerCase();
+
+  const filteredProducts = useMemo(() => {
+    return products
+      .filter((p) =>
+        selectedCategory === "all" ? true : p.category_id === selectedCategory,
+      )
+      .filter((p) => p.name.toLowerCase().includes(normalizedSearch))
+      .filter((p) => {
+        if (showOutOfStock) return true;
+        return !(
+          p.out_of_stock === true ||
+          p.stock === 0 ||
+          p.availability === false
+        );
+      })
+      .filter((p) =>
+        mostSellingOnly
+          ? p.most_selling === true || p.is_most_selling === true
+          : true,
       );
-    }
-
-    if (search) {
-      list = list.filter((p) =>
-        p.name?.toLowerCase().includes(search.toLowerCase()),
-      );
-    }
-
-    if (imageFilter === "with") {
-      list = list.filter((p) => p.images?.length);
-    }
-
-    if (imageFilter === "without") {
-      list = list.filter((p) => !p.images?.length);
-    }
-
-    if (mostSellingOnly) {
-      list = list.filter((p) => (salesMap[p.id] ?? 0) > 0);
-    }
-
-    if (!showOutOfStock) {
-      list = list.filter((p) => (p.stock ?? 0) > 0);
-    }
-
-    if (sortOption === "price-low") {
-      list.sort((a, b) => a.price - b.price);
-    }
-
-    if (sortOption === "price-high") {
-      list.sort((a, b) => b.price - a.price);
-    }
-
-    if (sortOption === "az") {
-      list.sort((a, b) => a.name.localeCompare(b.name));
-    }
-
-    return list;
   }, [
     products,
     selectedCategory,
-    search,
-    imageFilter,
-    sortOption,
-    mostSellingOnly,
+    normalizedSearch,
     showOutOfStock,
-    salesMap,
+    mostSellingOnly,
   ]);
 
-  const topSelling = useMemo(() => {
-    return [...products]
-      .filter((p) => (salesMap[p.id] ?? 0) > 0)
-      .sort((a, b) => (salesMap[b.id] ?? 0) - (salesMap[a.id] ?? 0))
-      .slice(0, 10);
-  }, [products, salesMap]);
+  const gridTemplateColumns =
+    layoutMode === "compact"
+      ? "repeat(auto-fill, minmax(130px, 1fr))"
+      : "repeat(auto-fill, minmax(170px, 1fr))";
 
-  const customerHistoryMap = useMemo(() => {
-    const map = new Map();
-    customerHistoryProducts.forEach((product) => {
-      map.set(product.id, product);
-    });
-    return map;
-  }, [customerHistoryProducts]);
-
-  const displayProducts = useMemo(() => {
-    if (!showCustomerHistory) return filtered;
-    return filtered.filter((product) => customerHistoryMap.has(product.id));
-  }, [filtered, showCustomerHistory, customerHistoryMap]);
+  /* ================= RENDER ================= */
 
   return (
-    <Box
-      sx={{
-        width: "100%",
-        maxWidth: 1400,
-        mx: "auto",
-        px: { xs: 1.5, sm: 2 },
-        pb: 10,
-      }}
-    >
-      <Box
-        sx={{
+    <div style={{ padding: 16, maxWidth: 1200, margin: "0 auto" }}>
+      <h2 style={{ marginBottom: 10 }}>Product Categories</h2>
+
+      {/* ===== CATEGORY PILLS ===== */}
+      <div
+        ref={scrollRef}
+        style={{
           display: "flex",
-          gap: 3,
-          alignItems: "center",
-          mb: 2,
-          flexWrap: "wrap",
+          gap: 10,
+          overflowX: "auto",
+          paddingBottom: 6,
+          marginBottom: 14,
+          scrollbarWidth: "none",
+          WebkitOverflowScrolling: "touch",
+          scrollBehavior:"smooth",
         }}
       >
-        <Button
-          variant={showOutOfStock ? "contained" : "outlined"}
-          onClick={() => setShowOutOfStock(!showOutOfStock)}
-          sx={{
-            textTransform: "none",
-            borderRadius: 999,
-            fontWeight: 600,
-          }}
-        >
-          {showOutOfStock ? "Hide Out of Stock" : "Show Out of Stock"}
-        </Button>
+        {orderedCategories.map((c) => {
+          const active = selectedCategory === c.id;
 
-        <Button
-          variant={mostSellingOnly ? "contained" : "outlined"}
-          onClick={() => setMostSellingOnly(!mostSellingOnly)}
-          sx={{
-            textTransform: "none",
-            borderRadius: 999,
-            fontWeight: 600,
-          }}
-        >
-          {mostSellingOnly ? "Showing Most Selling" : "Most Selling"}
-        </Button>
-
-        {!!customerName && (
-          <Button
-            variant={showCustomerHistory ? "contained" : "outlined"}
-            onClick={() => setShowCustomerHistory(!showCustomerHistory)}
-            sx={{
-              textTransform: "none",
-              borderRadius: 999,
-              fontWeight: 600,
-            }}
-          >
-            Show Previous Orders
-          </Button>
-        )}
-      </Box>
-
-      {categories.length > 0 && (
-        <Box
-          sx={{
-            display: "flex",
-            gap: 1,
-            overflowX: "auto",
-            flexWrap: "nowrap",
-            pb: 1,
-            scrollbarWidth: "thin",
-            "&::-webkit-scrollbar": { height: 6 },
-          }}
-        >
-          <Typography
-            sx={{
-              fontWeight: 700,
-              mb: 1.5,
-              fontSize: { xs: 15, sm: 18 },
-            }}
-          >
-            Categories
-          </Typography>
-
-          <Box
-            sx={{
-              display: "flex",
-              gap: 1,
-              overflowX: { xs: "auto", md: "visible" },
-              flexWrap: { xs: "nowrap", md: "wrap" },
-              justifyContent: { md: "flex-start" },
-              pb: 1,
-              scrollbarWidth: "none",
-              "&::-webkit-scrollbar": { display: "none" },
-            }}
-          >
-            <Button
-              variant={selectedCategory === "all" ? "contained" : "outlined"}
-              onClick={() => setSelectedCategory("all")}
-              sx={{
+          return (
+            <button
+              key={c.id}
+              data-id={c.id}
+              onClick={() => setSelectedCategory(c.id)}
+              style={{
+                padding: "8px 16px",
                 borderRadius: 999,
-                flexShrink: 0,
-                textTransform: "none",
+                border: active ? "none" : "1px solid #e5e7eb",
+                background: active ? "#2563eb" : "#f9fafb",
+                color: active ? "#fff" : "#111",
                 fontWeight: 600,
-                px: 2.5,
+                fontSize:14,
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                transform: active ? "scale(1.05)" : "scale(1)",
+                boxShadow:active?"0 4px 14px rgba(37,99,235,0.3)":"none",
+                
               }}
             >
-              All
-            </Button>
+              {c.name}
+            </button>
+          );
+        })}
+      </div>
 
-            {categories.map((c) => (
-              <Button
-                key={c.id}
-                variant={selectedCategory === c.id ? "contained" : "outlined"}
-                onClick={() => setSelectedCategory(c.id)}
-                sx={{
-                  borderRadius: 999,
-                  flexShrink: 0,
-                  textTransform: "none",
-                  fontWeight: 600,
-                  px: 2.5,
-                }}
-              >
-                {c.name}
-              </Button>
-            ))}
-          </Box>
-        </Box>
-      )}
-
-      {topSelling.length > 0 && !mostSellingOnly && !showCustomerHistory && (
-        <Box sx={{ mb: 4 }}>
-          <Typography
-            sx={{
-              fontWeight: 800,
-              fontSize: { xs: 16, sm: 20 },
-              mb: 2,
-            }}
-          >
-            🔥 Most Selling
-          </Typography>
-
-          <Box
-            sx={{
-              display: "flex",
-              gap: 2,
-              overflowX: "auto",
-              pb: 1,
-              scrollbarWidth: "none",
-              "&::-webkit-scrollbar": { display: "none" },
-            }}
-          >
-            {topSelling.map((p) => (
-              <Box
-                key={p.id}
-                sx={{
-                  minWidth: 180,
-                  maxWidth: 200,
-                  flexShrink: 0,
-                }}
-              >
-                <ProductCard
-                  product={p}
-                  cart={cart}
-                  onView={setViewProduct}
-                  onAdd={addToCart}
-                  onInc={increaseQty}
-                  onDec={decreaseQty}
-                  orderMode={orderMode}
-                  layoutMode="grid-2"
-                  out={(p.stock ?? 0) <= 0}
-                  salesCount={salesMap[p.id] ?? 0}
-                />
-              </Box>
-            ))}
-          </Box>
-        </Box>
-      )}
-
-      <Box
-        sx={{
-          display: "grid",
-          gap: 2,
-          gridTemplateColumns: {
-            xs:
-              layoutMode === "list"
-                ? "1fr"
-                : layoutMode === "grid-2"
-                  ? "repeat(2, 1fr)"
-                  : layoutMode === "grid-3"
-                    ? "repeat(3, 1fr)"
-                    : layoutMode === "grid-4"
-                      ? "repeat(4, 1fr)"
-                      : "repeat(2, 1fr)",
-
-            sm:
-              layoutMode === "list"
-                ? "1fr"
-                : layoutMode === "grid-2"
-                  ? "repeat(2, 1fr)"
-                  : layoutMode === "grid-3"
-                    ? "repeat(3, 1fr)"
-                    : layoutMode === "grid-4"
-                      ? "repeat(4, 1fr)"
-                      : "repeat(3, 1fr)",
-
-            md:
-              layoutMode === "list"
-                ? "1fr"
-                : layoutMode === "grid-2"
-                  ? "repeat(2, 1fr)"
-                  : layoutMode === "grid-3"
-                    ? "repeat(3, 1fr)"
-                    : layoutMode === "grid-4"
-                      ? "repeat(4, 1fr)"
-                      : "repeat(4, 1fr)",
-
-            lg:
-              layoutMode === "list"
-                ? "1fr"
-                : layoutMode === "grid-2"
-                  ? "repeat(2, 1fr)"
-                  : layoutMode === "grid-3"
-                    ? "repeat(3, 1fr)"
-                    : layoutMode === "grid-4"
-                      ? "repeat(4, 1fr)"
-                      : "repeat(4, 1fr)",
-          },
-        }}
-      >
-        {displayProducts.map((p) => (
-          <ProductCard
-            key={p.id}
-            product={p}
-            cart={cart}
-            onView={setViewProduct}
-            onAdd={addToCart}
-            onInc={increaseQty}
-            onDec={decreaseQty}
-            orderMode={showCustomerHistory ? false : orderMode}
-            layoutMode={layoutMode}
-            out={(p.stock ?? 0) <= 0}
-            salesCount={salesMap[p.id] ?? 0}
-          />
-        ))}
-      </Box>
-
-      <Box
-        sx={{
-          position: "fixed",
-          bottom: 20,
-          right: 20,
-          zIndex: 1000,
-        }}
-      >
-        <Button
-          onClick={() => setOrderMode(!orderMode)}
-          sx={{
-            borderRadius: 999,
-            px: 3,
-            py: 1.2,
-            backdropFilter: "blur(10px)",
-            background: orderMode
-              ? "rgba(14,165,164,0.9)"
-              : "rgba(15,23,42,0.6)",
-            color: "#fff",
-            fontWeight: 700,
-            textTransform: "none",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.25)",
-            transition: "all 0.25s ease",
-            "&:hover": { opacity: 0.85 },
+      {/* ===== SEARCH + FILTERS ===== */}
+      <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
+        <input
+          placeholder="🔍 Search products..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            width: "100%",
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid #d1d5db",
           }}
-        >
-          {orderMode ? "🛒 Order Mode" : "👁 View Mode"}
-        </Button>
-      </Box>
-    </Box>
+        />
+
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input
+              type="checkbox"
+              checked={mostSellingOnly}
+              onChange={(e) => setMostSellingOnly(e.target.checked)}
+            />
+            Most selling only
+          </label>
+
+          <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input
+              type="checkbox"
+              checked={showOutOfStock}
+              onChange={(e) => setShowOutOfStock(e.target.checked)}
+            />
+            Show out of stock
+          </label>
+
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              onClick={() => setLayoutMode("grid")}
+              style={layoutMode === "grid" ? activeModeBtn : modeBtn}
+            >
+              Grid
+            </button>
+            <button
+              onClick={() => setLayoutMode("compact")}
+              style={layoutMode === "compact" ? activeModeBtn : modeBtn}
+            >
+              Compact
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <h3 style={{ marginBottom: 10 }}>Products ({filteredProducts.length})</h3>
+
+      {/* ===== PRODUCT GRID ===== */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns,
+          gap: 14,
+          paddingBottom: 80,
+        }}
+      >
+        {filteredProducts.map((product) => {
+          const cartItem = cart.find((c) => c.productId === product.id);
+
+          return (
+            <ProductCard
+              key={product.id}
+              product={product}
+              cartItem={cartItem}
+              layoutMode={layoutMode}
+              onAddToCart={addToCart}
+              onIncreaseQty={increaseQty}
+              onDecreaseQty={decreaseQty}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
-export default memo(Catalog);
+const modeBtn = {
+  border: "1px solid #d1d5db",
+  background: "#fff",
+  borderRadius: 8,
+  padding: "6px 10px",
+  fontWeight: 500,
+};
+
+const activeModeBtn = {
+  ...modeBtn,
+  border: "1px solid #2563eb",
+  color: "#2563eb",
+  fontWeight: 700,
+};

@@ -1,51 +1,38 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Box,
-  Stack,
-  Typography,
-  Button,
-  IconButton,
-  Chip,
-  Dialog,
-} from "@mui/material";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import CloseIcon from "@mui/icons-material/Close";
-
-/* ================= UNIT NORMALIZER ================= */
-function normalizeUnits(units) {
-  if (!Array.isArray(units)) return [{ name: "pcs", multiplier: 1 }];
-  const valid = units.filter(
-    (u) => u && typeof u.name === "string" && typeof u.multiplier === "number",
-  );
-  return valid.length ? valid : [{ name: "pcs", multiplier: 1 }];
-}
-
-/* ======================================================
-   PRODUCT VIEW – v0.3 PREMIUM
-====================================================== */
+import { useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 export default function ProductView({
-  product,
   products = [],
   cart = [],
   addToCart,
   increaseQty,
   decreaseQty,
-  onBack,
-  onChangeProduct,
 }) {
-  if (!product) return null;
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: "auto", // or "smooth"
-    });
-  }, []);
+  const product = useMemo(
+    () => products.find((p) => String(p.id) === id),
+    [products, id],
+  );
 
-  /* ================= CATEGORY PRODUCTS (FIXED + LOOP) ================= */
+  const [selectedUnitName, setSelectedUnitName] = useState("");
+  const touchStartX = useRef(0);
+
+  const units = product?.units?.length
+    ? product.units
+    : [{ name: "pcs", multiplier: 1 }];
+
+  const selectedUnit =
+    units.find((u) => u.name === selectedUnitName) || units[0];
+
+  const cartItem = cart.find(
+    (c) => c.productId === product?.id && c.unitName === selectedUnit.name,
+  );
 
   const categoryProducts = useMemo(() => {
+    if (!product) return [];
     return products.filter(
       (p) =>
         (p.category_id || p.categoryId) ===
@@ -53,38 +40,37 @@ export default function ProductView({
     );
   }, [products, product]);
 
-  const currentIndex = categoryProducts.findIndex((p) => p.id === product.id);
+  const currentIndex = categoryProducts.findIndex((p) => p.id === product?.id);
 
   const prevProduct =
-    categoryProducts[
-      (currentIndex - 1 + categoryProducts.length) % categoryProducts.length
-    ];
+    currentIndex > 0 ? categoryProducts[currentIndex - 1] : null;
 
   const nextProduct =
-    categoryProducts[(currentIndex + 1) % categoryProducts.length];
+    currentIndex >= 0 && currentIndex < categoryProducts.length - 1
+      ? categoryProducts[currentIndex + 1]
+      : null;
 
-  /* ================= CART + UNIT ================= */
-  const units = normalizeUnits(product.units);
+  if (!product) {
+    return (
+      <div style={{ padding: 16 }}>
+        <button onClick={() => navigate("/")}>⬅ Back</button>
+        <p>Product not found.</p>
+      </div>
+    );
+  }
 
-  const [selectedUnit, setSelectedUnit] = useState(units[0]);
+  function goBack() {
+    if (location.key !== "default") {
+      navigate(-1);
+    } else {
+      navigate("/");
+    }
+  }
 
-  const cartItem = cart.find(
-    (c) => c.productId === product.id && c.unitName === selectedUnit.name,
-  );
-
-  const [zoomOpen, setZoomOpen] = useState(false);
-
-  useEffect(() => {
-    setSelectedUnit(normalizeUnits(product.units)[0]);
-  }, [product]);
-
-  const unitPrice = product.price * selectedUnit.multiplier;
-  const qty = cartItem?.qty || 1;
-  const total = qty * unitPrice;
-
-  /* ================= SWIPE ================= */
-
-  const touchStartX = useRef(0);
+  function navigateProduct(target) {
+    setSelectedUnitName("");
+    navigate(`/product/${target.id}`);
+  }
 
   function onTouchStart(e) {
     touchStartX.current = e.touches[0].clientX;
@@ -92,44 +78,34 @@ export default function ProductView({
 
   function onTouchEnd(e) {
     const diff = e.changedTouches[0].clientX - touchStartX.current;
-    if (diff < -60) onChangeProduct(nextProduct);
-    if (diff > 60) onChangeProduct(prevProduct);
+
+    if (diff < -60 && nextProduct) navigateProduct(nextProduct);
+
+    if (diff > 60 && prevProduct) navigateProduct(prevProduct);
   }
 
-  /* ================= UI ================= */
+  const price = product.price * (selectedUnit.multiplier || 1);
 
   return (
-    <Box sx={{ pb: 12 }}>
-      {/* ================= IMAGE HERO ================= */}
-      <Box
+    <div style={{ padding: 16, paddingBottom: 120 }}>
+      <button onClick={goBack}>⬅ Back</button>
+
+      {/* IMAGE SECTION */}
+      <div
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
-        sx={{
-          height: "65vh",
+        style={{
+          height: 300,
           background: "#f3f4f6",
-          position: "relative",
+          borderRadius: 12,
+          marginTop: 12,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          position: "relative",
+          overflow: "hidden",
         }}
-        onClick={() => setZoomOpen(true)}
       >
-        <IconButton
-          onClick={(e) => {
-            e.stopPropagation();
-            onBack();
-          }}
-          sx={{
-            position: "absolute",
-            top: 12,
-            left: 12,
-            background: "rgba(0,0,0,0.55)",
-            color: "#fff",
-          }}
-        >
-          <ArrowBackIcon />
-        </IconButton>
-
         {product.images?.[0] ? (
           <img
             src={product.images[0]}
@@ -142,183 +118,131 @@ export default function ProductView({
             }}
           />
         ) : (
-          <Typography fontSize={40}>📦</Typography>
+          <span style={{ fontSize: 32 }}>📦</span>
         )}
-      </Box>
 
-      {/* ================= INFO SHEET ================= */}
-      <Box sx={{ p: 2 }}>
-        <Typography fontSize={22} fontWeight={800}>
-          {product.name}
-        </Typography>
-
-        <Chip label="Category" size="small" sx={{ mt: 0.5, mb: 1 }} />
-
-        <Typography fontSize={20} fontWeight={800} color="primary">
-          ₹{unitPrice}{" "}
-          <Typography component="span" fontSize={13} color="text.secondary">
-            / {selectedUnit.name}
-          </Typography>
-        </Typography>
-
-        {/* ================= UNIT PILLS ================= */}
-        {units.length > 1 && (
-          <Stack direction="row" spacing={1} mt={2}>
-            {units.map((u) => (
-              <Button
-                key={u.name}
-                variant={
-                  selectedUnit.name === u.name ? "contained" : "outlined"
-                }
-                onClick={() => setSelectedUnit(u)}
-                size="small"
-              >
-                {u.name}
-              </Button>
-            ))}
-          </Stack>
+        {prevProduct && (
+          <button
+            onClick={() => navigateProduct(prevProduct)}
+            style={navBtn("left")}
+          >
+            ◀
+          </button>
         )}
-      </Box>
 
-      {/* ================= SAME CATEGORY ================= */}
-      {categoryProducts.length > 1 && (
-        <Box sx={{ px: 2 }}>
-          <Typography fontWeight={800} mb={1}>
-            More from this category
-          </Typography>
+        {nextProduct && (
+          <button
+            onClick={() => navigateProduct(nextProduct)}
+            style={navBtn("right")}
+          >
+            ▶
+          </button>
+        )}
+      </div>
 
-          <Box
-            sx={{
-              display: "flex",
-              gap: 1.5,
-              overflowX: "auto",
-              pb: 2,
+      {/* PRODUCT INFO */}
+      <h2 style={{ marginTop: 16 }}>{product.name}</h2>
+
+      {/* UNIT SELECT */}
+      {units.length > 1 && (
+        <>
+          <div style={{ marginTop: 8, fontSize: 13 }}>Select Unit</div>
+
+          <select
+            value={selectedUnit.name}
+            onChange={(e) => setSelectedUnitName(e.target.value)}
+            style={{
+              marginTop: 6,
+              padding: 8,
+              borderRadius: 8,
+              width: "100%",
             }}
           >
-            {categoryProducts.map((p) => (
-              <Box
-                key={p.id}
-                sx={{
-                  minWidth: 140,
-                  background: "#fff",
-                  borderRadius: 2,
-                  p: 1,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                  cursor: "pointer",
-                }}
-                onClick={() => onChangeProduct(p)}
-              >
-                <Box
-                  sx={{
-                    height: 90,
-                    background: "#f3f4f6",
-                    borderRadius: 1,
-                    mb: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {p.images?.[0] ? (
-                    <img
-                      src={p.images[0]}
-                      alt={p.name}
-                      loading="lazy"
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "contain",
-                      }}
-                    />
-                  ) : (
-                    "📦"
-                  )}
-                </Box>
-                <Typography fontSize={13} fontWeight={700}>
-                  {p.name}
-                </Typography>
-              </Box>
+            {units.map((u) => (
+              <option key={u.name} value={u.name}>
+                {u.name} – ₹{product.price * u.multiplier}
+              </option>
             ))}
-          </Box>
-        </Box>
+          </select>
+        </>
       )}
 
-      {/* ================= STICKY BAR ================= */}
-      <Box
-        sx={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: "#fff",
-          borderTop: "1px solid #e5e7eb",
-          p: 1.5,
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
-          zIndex: 999,
+      {/* PRICE */}
+      <div
+        style={{
+          fontWeight: 700,
+          marginTop: 12,
+          fontSize: 18,
         }}
       >
-        <Box flex={1}>
-          <Typography fontSize={13} color="text.secondary">
-            {qty} × ₹{unitPrice} / {selectedUnit.name}
-          </Typography>
-          <Typography fontSize={22} fontWeight={800}>
-            ₹{total}
-          </Typography>
-        </Box>
+        ₹{price}
+      </div>
 
-        {!cartItem ? (
-          <Button
-            variant="contained"
-            size="large"
-            onClick={() => addToCart(product, selectedUnit)}
+      {/* CART CONTROLS */}
+      {!cartItem ? (
+        <button onClick={() => addToCart(product, selectedUnit)} style={addBtn}>
+          Add to Cart
+        </button>
+      ) : (
+        <div style={qtyRow}>
+          <button
+            onClick={() => decreaseQty(product.id, selectedUnit.name)}
+            style={qtyBtn}
           >
-            Add
-          </Button>
-        ) : (
-          <Stack direction="row" spacing={1}>
-            <Button onClick={() => decreaseQty(product.id, selectedUnit.name)}>
-              -
-            </Button>
-            <Typography fontWeight={700}>{cartItem.qty}</Typography>
-            <Button onClick={() => increaseQty(product.id, selectedUnit.name)}>
-              +
-            </Button>
-          </Stack>
-        )}
-      </Box>
+            −
+          </button>
 
-      {/* ================= ZOOM MODAL ================= */}
-      <Dialog open={zoomOpen} onClose={() => setZoomOpen(false)} fullScreen>
-        <IconButton
-          onClick={() => setZoomOpen(false)}
-          sx={{ position: "absolute", top: 12, right: 12, color: "#fff" }}
-        >
-          <CloseIcon />
-        </IconButton>
+          <strong>{cartItem.qty}</strong>
 
-        <Box
-          sx={{
-            background: "#000",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <img
-            src={product.images?.[0]}
-            alt={product.name}
-            loading="lazy"
-            style={{
-              maxWidth: "100%",
-              maxHeight: "100%",
-              objectFit: "contain",
-            }}
-          />
-        </Box>
-      </Dialog>
-    </Box>
+          <button
+            onClick={() => increaseQty(product.id, selectedUnit.name)}
+            style={qtyBtn}
+          >
+            +
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
+
+const addBtn = {
+  width: "100%",
+  marginTop: 12,
+  padding: 12,
+  background: "#2563eb",
+  color: "#fff",
+  border: "none",
+  borderRadius: 10,
+  fontWeight: 600,
+};
+
+const qtyRow = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginTop: 12,
+};
+
+const qtyBtn = {
+  width: 36,
+  height: 36,
+  borderRadius: "50%",
+  border: "none",
+  background: "#e5e7eb",
+  fontSize: 18,
+  fontWeight: 700,
+};
+
+const navBtn = (side) => ({
+  position: "absolute",
+  top: "50%",
+  [side]: 8,
+  transform: "translateY(-50%)",
+  background: "rgba(0,0,0,0.6)",
+  color: "#fff",
+  border: "none",
+  borderRadius: "50%",
+  width: 36,
+  height: 36,
+});
