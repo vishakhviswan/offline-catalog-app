@@ -1,19 +1,17 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import Catalog from "./pages/Catalog";
-import ProductView from "./pages/ProductView";
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import NavBar from "./components/NavBar";
 import CartSheet from "./components/CartSheet";
-import Orders from "./pages/Orders";
 import FilterDrawer from "./components/FilterDrawer";
+import AppRoutes from "./AppRoutes";
 
 function App() {
-  /* ================= CORE STATE ================= */
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [products, setProducts] = useState([]);
-
-  const [viewProduct, setViewProduct] = useState(null);
   const [savedScrollY, setSavedScrollY] = useState(0);
 
   const [cart, setCart] = useState([]);
@@ -23,15 +21,12 @@ function App() {
   const [customerName, setCustomerName] = useState("");
 
   const [orders, setOrders] = useState([]);
-  const [showOrders, setShowOrders] = useState(false);
 
   const [search, setSearch] = useState("");
   const [showCart, setShowCart] = useState(false);
 
   const [showOutOfStock, setShowOutOfStock] = useState(true);
   const [mostSellingOnly, setMostSellingOnly] = useState(false);
-
-  /* ================= NEW STATES ================= */
 
   const [orderMode, setOrderMode] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -40,27 +35,24 @@ function App() {
   const [sortOption, setSortOption] = useState("default");
   const [layoutMode, setLayoutMode] = useState("grid-3");
 
-  /* ================= SCROLL RESTORE ================= */
+  const isCatalogRoute = location.pathname === "/";
 
   const openProduct = (product) => {
     setSavedScrollY(window.scrollY);
-    setViewProduct(product);
+    navigate(`/product/${product.id}`);
   };
 
   const handleBackFromProduct = () => {
-    setViewProduct(null);
+    navigate("/");
     setTimeout(() => {
       window.scrollTo(0, savedScrollY);
     }, 0);
   };
 
-
-
   async function handleCheckout() {
     if (cart.length === 0) return;
 
     try {
-      /* ================= SAVE TO DB ================= */
       const response = await fetch(
         "https://offline-catalog-backend-production.up.railway.app/api/orders",
         {
@@ -82,7 +74,21 @@ function App() {
         throw new Error(data.error || "Order save failed");
       }
 
-      /* ================= WHATSAPP MESSAGE ================= */
+      const createdOrder = data?.order || data?.data || data;
+
+      if (!createdOrder) return;
+
+      setOrders((prev) => {
+        const next = [createdOrder, ...prev];
+        if (!createdOrder?.id) return next;
+        const seen = new Set();
+        return next.filter((order, index) => {
+          const key = order?.id ?? `no-id-${index}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      });
 
       let msg = `*MANGALYA AGENCIES*\n\n`;
       msg += `Customer: ${customerName || "Walk-in"}\n\n`;
@@ -102,13 +108,8 @@ function App() {
       );
 
       msg += `------------------\nTotal: ₹${grandTotal}`;
-
-      /* ================= OPEN WHATSAPP ================= */
-
       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
       window.open(whatsappUrl, "_blank");
-
-      /* ================= CLEAR CART ================= */
 
       setCart([]);
       setCustomerName("");
@@ -120,30 +121,27 @@ function App() {
     }
   }
 
-async function handleDeleteOrder(orderId) {
-  try {
-    const res = await fetch(
-      `https://offline-catalog-backend-production.up.railway.app/api/orders/${orderId}`,
-      {
-        method: "DELETE",
-      },
-    );
+  async function handleDeleteOrder(orderId) {
+    try {
+      const res = await fetch(
+        `https://offline-catalog-backend-production.up.railway.app/api/orders/${orderId}`,
+        {
+          method: "DELETE",
+        },
+      );
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      throw new Error(data.error || "Delete failed");
+      if (!res.ok) {
+        throw new Error(data.error || "Delete failed");
+      }
+
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Delete failed ❌");
     }
-
-    // 🔥 remove instantly from UI
-    setOrders((prev) => prev.filter((o) => o.id !== orderId));
-  } catch (err) {
-    console.error("Delete error:", err);
-    alert("Delete failed ❌");
   }
-}
-
-  /* ================= CART HELPERS ================= */
 
   function addToCart(product, unit) {
     const safeUnit =
@@ -224,27 +222,14 @@ async function handleDeleteOrder(orderId) {
     0,
   );
 
-  /* ================= DATA LOADERS ================= */
-const salesMap = useMemo(() => {
-  const map = {};
-
-  orders.forEach((order) => {
-    order.order_items?.forEach((item) => {
-      map[item.product_id] =
-        (map[item.product_id] || 0) + Number(item.qty || 0);
-    });
-  });
-
-  return map;
-}, [orders]);
-
-
   useEffect(() => {
     const saved = localStorage.getItem("cart");
     if (saved) {
       try {
         setCart(JSON.parse(saved));
-      } catch {}
+      } catch {
+        // no-op
+      }
     }
     setCartLoaded(true);
   }, []);
@@ -263,9 +248,7 @@ const salesMap = useMemo(() => {
   }, []);
 
   useEffect(() => {
-    fetch(
-      "https://offline-catalog-backend-production.up.railway.app/api/products",
-    )
+    fetch("https://offline-catalog-backend-production.up.railway.app/api/products")
       .then((r) => r.json())
       .then((d) => setProducts(Array.isArray(d) ? d : []));
   }, []);
@@ -279,92 +262,79 @@ const salesMap = useMemo(() => {
   }, []);
 
   useEffect(() => {
-    fetch(
-      "https://offline-catalog-backend-production.up.railway.app/api/orders",
-    )
+    fetch("https://offline-catalog-backend-production.up.railway.app/api/orders")
       .then((r) => r.json())
-      .then((data) => setOrders(data || []));
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setOrders(data);
+        } else if (Array.isArray(data?.orders)) {
+          setOrders(data.orders);
+        } else {
+          setOrders([]);
+        }
+      });
   }, []);
 
-  // useEffect(() => {
-  //   if (categories.length > 0 && !selectedCategory) {
-  //     setSelectedCategory(categories[0].id);
-  //   }
-  // }, [categories, selectedCategory]);
-  /* ================= ROUTING ================= */
-
-  if (viewProduct) {
-    return (
-      <ProductView
-        product={viewProduct}
-        products={products}
-        cart={cart}
-        addToCart={addToCart}
-        increaseQty={increaseQty}
-        decreaseQty={decreaseQty}
-        onBack={handleBackFromProduct}
-        onChangeProduct={openProduct}
-      />
-    );
-  }
-
-if (showOrders) {
-  return (
-    <Orders
-      orders={orders}
-      onBack={() => setShowOrders(false)}
-      onDeleteOrder={handleDeleteOrder}
-    />
-  );
-}
-
-
-  /* ================= UI ================= */
+  const catalogProps = {
+    categories,
+    selectedCategory,
+    setSelectedCategory,
+    products,
+    setViewProduct: openProduct,
+    cart,
+    addToCart,
+    increaseQty,
+    decreaseQty,
+    search,
+    setSearch,
+    orders,
+    customerName,
+    orderMode,
+    setOrderMode,
+    imageFilter,
+    sortOption,
+    layoutMode,
+    setLayoutMode,
+    showOutOfStock,
+    setShowOutOfStock,
+    mostSellingOnly,
+    setMostSellingOnly,
+  };
 
   return (
     <>
-      <NavBar
-        search={search}
-        setSearch={setSearch}
-        cartCount={cart.length}
-        cartTotal={cartTotal}
-        customerName={customerName}
-        setCustomerName={setCustomerName}
-        customers={customers}
-        setCustomers={setCustomers}
-        products={products}
-        setViewProduct={openProduct}
-        onCartClick={() => setShowCart(true)}
-        onOrdersClick={() => setShowOrders(true)}
-        onFilterClick={() => setFilterOpen(true)}
-      />
+      {isCatalogRoute && (
+        <NavBar
+          search={search}
+          setSearch={setSearch}
+          cartCount={cart.length}
+          cartTotal={cartTotal}
+          customerName={customerName}
+          setCustomerName={setCustomerName}
+          customers={customers}
+          setCustomers={setCustomers}
+          products={products}
+          setViewProduct={openProduct}
+          onCartClick={() => setShowCart(true)}
+          onOrdersClick={() => navigate("/orders")}
+          onFilterClick={() => setFilterOpen(true)}
+        />
+      )}
 
-      <Catalog
-        categories={categories}
-        selectedCategory={selectedCategory}
-        setSelectedCategory={setSelectedCategory}
+      <AppRoutes
         products={products}
-        setViewProduct={openProduct}
+        orders={orders}
         cart={cart}
         addToCart={addToCart}
         increaseQty={increaseQty}
         decreaseQty={decreaseQty}
-        search={search}
-        orders={orders}
-        customerName={customerName}
-        orderMode={orderMode}
-        setOrderMode={setOrderMode}
-        imageFilter={imageFilter}
-        sortOption={sortOption}
-        layoutMode={layoutMode}
-        showOutOfStock={showOutOfStock}
-        setShowOutOfStock={setShowOutOfStock}
-        mostSellingOnly={mostSellingOnly}
-        setMostSellingOnly={setMostSellingOnly}
-        salesMap={salesMap}
+        onOpenProduct={openProduct}
+        onBackFromProduct={handleBackFromProduct}
+        onDeleteOrder={handleDeleteOrder}
+        catalog={catalogProps}
       />
 
-      {showCart && (
+      {isCatalogRoute && showCart && (
         <CartSheet
           cart={cart}
           increaseQty={increaseQty}
@@ -377,16 +347,18 @@ if (showOrders) {
         />
       )}
 
-      <FilterDrawer
-        open={filterOpen}
-        onClose={() => setFilterOpen(false)}
-        imageFilter={imageFilter}
-        setImageFilter={setImageFilter}
-        sortOption={sortOption}
-        setSortOption={setSortOption}
-        layoutMode={layoutMode}
-        setLayoutMode={setLayoutMode}
-      />
+      {isCatalogRoute && (
+        <FilterDrawer
+          open={filterOpen}
+          onClose={() => setFilterOpen(false)}
+          imageFilter={imageFilter}
+          setImageFilter={setImageFilter}
+          sortOption={sortOption}
+          setSortOption={setSortOption}
+          layoutMode={layoutMode}
+          setLayoutMode={setLayoutMode}
+        />
+      )}
     </>
   );
 }

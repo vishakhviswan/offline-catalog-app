@@ -1,6 +1,17 @@
-import { useState, useMemo, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Box,
+  Button,
+  Card,
+  CardActions,
+  CardContent,
+  CardMedia,
+  Chip,
+  Stack,
+  Typography,
+} from "@mui/material";
 
-export function normalizeUnits(units) {
+function normalizeUnits(units) {
   if (!Array.isArray(units)) {
     return [{ name: "pcs", multiplier: 1 }];
   }
@@ -20,202 +31,166 @@ export default function ProductCard({
   onInc,
   onDec,
   orderMode = false,
-  layoutMode = "grid-3",
   out = false,
+  topBadge,
+  metaInfo,
 }) {
-  if (!product) return null;
+  const safeProduct = product || { id: null, units: [], price: 0, name: "" };
+  const [imageError, setImageError] = useState(false);
 
-  const units = normalizeUnits(product.units);
+  useEffect(() => {
+    setImageError(false);
+  }, [safeProduct.id, safeProduct.images]);
 
-  // 🔥 Layout detection INSIDE component
-  const isList = layoutMode === "list";
-  const isSmall = layoutMode === "grid-4";
-  const isMedium = layoutMode === "grid-3";
-  const isLarge = layoutMode === "grid-2";
-
-  const [selectedUnit, setSelectedUnit] = useState(units[0]);
+  const units = normalizeUnits(safeProduct.units);
+  const selectedUnit = units[0];
 
   const activeCartItem = useMemo(() => {
     return cart.find(
-      (c) => c.productId === product.id && c.unitName === selectedUnit.name,
+      (c) => c.productId === safeProduct.id && c.unitName === selectedUnit.name,
     );
-  }, [cart, product.id, selectedUnit]);
-
-  useEffect(() => {
-    const existing = cart.find((c) => c.productId === product.id);
-    if (existing) {
-      const matched = units.find((u) => u.name === existing.unitName);
-      if (matched && matched.name !== selectedUnit.name) {
-        setSelectedUnit(matched);
-      }
-    }
-  }, [cart, product.id, units, selectedUnit.name]);
+  }, [cart, safeProduct.id, selectedUnit.name]);
 
   const displayPrice = useMemo(() => {
-    return product.price * (selectedUnit.multiplier || 1);
-  }, [product.price, selectedUnit]);
+    return safeProduct.price * (selectedUnit.multiplier || 1);
+  }, [safeProduct.price, selectedUnit.multiplier]);
+
+  if (!product) return null;
 
   return (
-    <div
-      style={{
-        background: "#fff",
-        borderRadius: isSmall ? 12 : 18,
-        padding: isSmall ? 8 : 12,
-        boxShadow: "0 8px 22px rgba(0,0,0,0.08)",
+    <Card
+      elevation={2}
+      sx={{
         display: "flex",
         flexDirection: "column",
-        gap: isSmall ? 6 : 8,
-        width: "100%",
-        minWidth: 0,
-        opacity: out ? 0.5 : 1,
-        filter: out ? "grayscale(100%)" : "none",
+        height: "100%",
+        borderRadius: 2,
+        opacity: out ? 0.6 : 1,
+        transition: "transform .22s ease, box-shadow .22s ease",
+        "&:hover": {
+          transform: { md: "translateY(-2px) scale(1.01)" },
+          boxShadow: { md: 8 },
+        },
       }}
     >
-      {/* IMAGE */}
-      <div
-        style={{
-          width: "100%",
-          aspectRatio: "1 / 1",
-          background: "#f3f4f6",
-          borderRadius: isSmall ? 10 : 14,
-          overflow: "hidden",
-          cursor: "pointer",
-          position: "relative", // 🔥 IMPORTANT
-        }}
-        onClick={() => onView?.(product)}
-      >
-        {product.images?.[0] ? (
-          <img
-            src={product.images[0]}
-            alt={product.name}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: isSmall ? 22 : 32,
+      <Box sx={{ position: "relative", aspectRatio: "1 / 1", cursor: "pointer" }} onClick={() => onView?.(safeProduct)}>
+        <CardMedia
+          component="img"
+          image={safeProduct.images?.[0] || ""}
+          alt={safeProduct.name}
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+            setImageError(true);
+          }}
+          sx={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            bgcolor: "#f9fafb",
+            p: 1,
+            display: safeProduct.images?.[0] && !imageError ? "block" : "none",
+          }}
+        />
+
+        {(!safeProduct.images?.[0] || imageError) && (
+          <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              display: "grid",
+              placeItems: "center",
+              fontSize: 34,
+              bgcolor: "#f9fafb",
             }}
           >
             📦
-          </div>
+          </Box>
         )}
 
-        {/* 🔥 OUT OF STOCK BADGE */}
+        {topBadge && (
+          <Chip
+            label={topBadge}
+            size="small"
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              bgcolor: "#f59e0b",
+              color: "#111827",
+              fontWeight: 700,
+            }}
+          />
+        )}
+
         {out && (
-          <div
-            style={{
+          <Chip
+            label="Out of stock"
+            size="small"
+            sx={{
               position: "absolute",
               top: 8,
               left: 8,
-              background: "#ef4444",
+              bgcolor: "#ef4444",
               color: "#fff",
-              padding: "4px 8px",
-              borderRadius: 6,
-              fontSize: 11,
               fontWeight: 700,
             }}
-          >
-            Out of stock
-          </div>
+          />
         )}
-      </div>
+      </Box>
 
-      {/* NAME */}
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: isSmall ? 12 : isMedium ? 14 : 16,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
-      >
-        {product.name}
-      </div>
-
-      {/* PRICE */}
-      <div
-        style={{
-          fontWeight: 800,
-          fontSize: isSmall ? 13 : 15,
-          color: "#16a34a",
-        }}
-      >
-        ₹{displayPrice.toFixed(2)}
-        <span style={{ fontSize: 11, color: "#6b7280", marginLeft: 4 }}>
-          / {selectedUnit.name}
-        </span>
-      </div>
-
-      {/* ORDER MODE CONTROLS */}
-      {orderMode && !activeCartItem && (
-        <button
-          onClick={() => onAdd?.(product, selectedUnit)}
-          style={{
-            padding: isSmall ? "6px 0" : "10px 0",
-            borderRadius: 12,
-            border: "none",
-            background: "#0EA5A4",
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: isSmall ? 12 : 14,
-            cursor: "pointer",
+      <CardContent sx={{ flexGrow: 1, pb: 1.25 }}>
+        <Typography
+          fontWeight={700}
+          sx={{
+            minHeight: 42,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
           }}
         >
-          Add
-        </button>
+          {safeProduct.name}
+        </Typography>
+
+        <Typography sx={{ fontWeight: 800, color: "#16a34a" }}>
+          ₹{displayPrice.toFixed(2)}
+          <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+            / {selectedUnit.name}
+          </Typography>
+        </Typography>
+
+        {metaInfo && (
+          <Typography variant="caption" color="text.secondary" title={metaInfo} noWrap>
+            {metaInfo}
+          </Typography>
+        )}
+      </CardContent>
+
+      {orderMode && (
+        <CardActions sx={{ px: 1.5, pb: 1.5, pt: 0, mt: "auto" }}>
+          {!activeCartItem ? (
+            <Button
+              fullWidth
+              variant="contained"
+              disabled={out}
+              onClick={() => onAdd?.(safeProduct, selectedUnit)}
+              sx={{ textTransform: "none", bgcolor: "#2563eb", borderRadius: 2 }}
+            >
+              Add
+            </Button>
+          ) : (
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ width: "100%", justifyContent: "space-between" }}>
+              <Button variant="outlined" onClick={() => onDec?.(safeProduct.id, selectedUnit.name)}>
+                −
+              </Button>
+              <Typography fontWeight={800}>{activeCartItem.qty}</Typography>
+              <Button variant="outlined" onClick={() => onInc?.(safeProduct.id, selectedUnit.name)}>
+                +
+              </Button>
+            </Stack>
+          )}
+        </CardActions>
       )}
-
-      {orderMode && activeCartItem && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <button
-            onClick={() => onDec?.(product.id, selectedUnit.name)}
-            style={{
-              width: isSmall ? 28 : 36,
-              height: isSmall ? 28 : 36,
-              borderRadius: "50%",
-              border: "none",
-              background: "#e5e7eb",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            −
-          </button>
-
-          <strong>{activeCartItem.qty}</strong>
-
-          <button
-            onClick={() => onInc?.(product.id, selectedUnit.name)}
-            style={{
-              width: isSmall ? 28 : 36,
-              height: isSmall ? 28 : 36,
-              borderRadius: "50%",
-              border: "none",
-              background: "#e5e7eb",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
-            +
-          </button>
-        </div>
-      )}
-    </div>
+    </Card>
   );
 }
