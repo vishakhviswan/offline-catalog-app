@@ -248,7 +248,15 @@ function App() {
   useEffect(() => {
     fetch("https://offline-catalog-backend-production.up.railway.app/api/orders")
       .then((r) => r.json())
-      .then((data) => setOrders(data || []));
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setOrders(data);
+        } else if (Array.isArray(data?.orders)) {
+          setOrders(data.orders);
+        } else {
+          setOrders([]);
+        }
+      });
   }, []);
 
   const catalogProps = {

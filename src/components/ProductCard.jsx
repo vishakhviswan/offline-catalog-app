@@ -20,7 +20,6 @@ export default function ProductCard({
   onInc,
   onDec,
   orderMode = false,
-  layoutMode = "grid-3",
   out = false,
   topBadge,
   metaInfo,
@@ -99,7 +98,22 @@ export default function ProductCard({
             }}
           >
             📦
-          </div>
+          </Box>
+        )}
+
+        {topBadge && (
+          <Chip
+            label={topBadge}
+            size="small"
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              bgcolor: "#f59e0b",
+              color: "#111827",
+              fontWeight: 700,
+            }}
+          />
         )}
 
         {topBadge && (
@@ -121,21 +135,18 @@ export default function ProductCard({
         )}
 
         {out && (
-          <div
-            style={{
+          <Chip
+            label="Out of stock"
+            size="small"
+            sx={{
               position: "absolute",
               top: 8,
               left: 8,
-              background: "#ef4444",
+              bgcolor: "#ef4444",
               color: "#fff",
-              padding: "4px 8px",
-              borderRadius: 6,
-              fontSize: 11,
               fontWeight: 700,
             }}
-          >
-            Out of stock
-          </div>
+          />
         )}
       </div>
 
@@ -232,6 +243,6 @@ export default function ProductCard({
           </button>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

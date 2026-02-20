@@ -181,6 +181,7 @@ export default function Catalog({
   decreaseQty,
   setViewProduct,
   setOrderMode,
+  setLayoutMode,
   imageFilter,
   sortOption,
   search,
