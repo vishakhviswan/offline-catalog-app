@@ -1,9 +1,15 @@
 import { defineConfig } from "vite";
+import { fileURLToPath, URL } from "node:url";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   base:"/offline-catalog-app/",
+  resolve: {
+    alias: {
+      "react-router-dom": fileURLToPath(new URL("./src/shims/react-router-dom.jsx", import.meta.url)),
+    },
+  },
   plugins: [
     react(),
     VitePWA({

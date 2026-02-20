@@ -5,13 +5,16 @@ import CssBaseline from "@mui/material/CssBaseline";
 
 import App from "./App.jsx";
 import theme from "./theme";
+import { HashRouter } from "react-router-dom";
 import "./index.css";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <App />
+      <HashRouter>
+        <App />
+      </HashRouter>
     </ThemeProvider>
   </StrictMode>,
 );
