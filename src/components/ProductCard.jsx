@@ -1,15 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  Card,
-  CardActions,
-  CardContent,
-  CardMedia,
-  Chip,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { useState, useMemo } from "react";
 
 function normalizeUnits(units) {
   if (!Array.isArray(units)) {
@@ -36,71 +25,76 @@ export default function ProductCard({
   metaInfo,
 }) {
   const safeProduct = product || { id: null, units: [], price: 0, name: "" };
-  const [imageError, setImageError] = useState(false);
-
-  useEffect(() => {
-    setImageError(false);
-  }, [safeProduct.id, safeProduct.images]);
 
   const units = normalizeUnits(safeProduct.units);
+  const isSmall = layoutMode === "grid-4";
+  const isMedium = layoutMode === "grid-3";
+  const [isHover, setIsHover] = useState(false);
   const selectedUnit = units[0];
+
+  const canHoverDesktop =
+    typeof window !== "undefined" &&
+    window.matchMedia("(min-width: 900px) and (hover: hover)").matches;
 
   const activeCartItem = useMemo(() => {
     return cart.find(
       (c) => c.productId === safeProduct.id && c.unitName === selectedUnit.name,
     );
-  }, [cart, safeProduct.id, selectedUnit.name]);
+  }, [cart, safeProduct.id, selectedUnit]);
 
   const displayPrice = useMemo(() => {
     return safeProduct.price * (selectedUnit.multiplier || 1);
-  }, [safeProduct.price, selectedUnit.multiplier]);
+  }, [safeProduct.price, selectedUnit]);
 
   if (!product) return null;
 
   return (
-    <Card
-      elevation={2}
-      sx={{
+    <div
+      onMouseEnter={() => canHoverDesktop && setIsHover(true)}
+      onMouseLeave={() => setIsHover(false)}
+      style={{
+        background: "#fff",
+        borderRadius: isSmall ? 12 : 18,
+        padding: isSmall ? 8 : 12,
+        boxShadow: "0 8px 22px rgba(0,0,0,0.08)",
         display: "flex",
         flexDirection: "column",
-        height: "100%",
-        borderRadius: 2,
-        opacity: out ? 0.6 : 1,
-        transition: "transform .22s ease, box-shadow .22s ease",
-        "&:hover": {
-          transform: { md: "translateY(-2px) scale(1.01)" },
-          boxShadow: { md: 8 },
-        },
+        gap: isSmall ? 6 : 8,
+        width: "100%",
+        minWidth: 0,
+        opacity: out ? 0.5 : 1,
+        filter: out ? "grayscale(100%)" : "none",
+        transform: isHover ? "scale(1.02)" : "scale(1)",
+        transition: "transform 0.2s ease, box-shadow 0.2s ease",
       }}
     >
-      <Box sx={{ position: "relative", aspectRatio: "1 / 1", cursor: "pointer" }} onClick={() => onView?.(safeProduct)}>
-        <CardMedia
-          component="img"
-          image={safeProduct.images?.[0] || ""}
-          alt={safeProduct.name}
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-            setImageError(true);
-          }}
-          sx={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            bgcolor: "#f9fafb",
-            p: 1,
-            display: safeProduct.images?.[0] && !imageError ? "block" : "none",
-          }}
-        />
-
-        {(!safeProduct.images?.[0] || imageError) && (
-          <Box
-            sx={{
-              position: "absolute",
-              inset: 0,
-              display: "grid",
-              placeItems: "center",
-              fontSize: 34,
-              bgcolor: "#f9fafb",
+      <div
+        style={{
+          width: "100%",
+          aspectRatio: "1 / 1",
+          background: "#f3f4f6",
+          borderRadius: isSmall ? 10 : 14,
+          overflow: "hidden",
+          cursor: "pointer",
+          position: "relative",
+        }}
+        onClick={() => onView?.(safeProduct)}
+      >
+        {safeProduct.images?.[0] ? (
+          <img
+            src={safeProduct.images?.[0]}
+            alt={safeProduct.name}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: isSmall ? 22 : 32,
             }}
           >
             📦
@@ -122,6 +116,24 @@ export default function ProductCard({
           />
         )}
 
+        {topBadge && (
+          <div
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              background: "#f59e0b",
+              color: "#111827",
+              padding: "4px 8px",
+              borderRadius: 999,
+              fontSize: 10,
+              fontWeight: 700,
+            }}
+          >
+            {topBadge}
+          </div>
+        )}
+
         {out && (
           <Chip
             label="Out of stock"
@@ -136,60 +148,100 @@ export default function ProductCard({
             }}
           />
         )}
-      </Box>
+      </div>
 
-      <CardContent sx={{ flexGrow: 1, pb: 1.25 }}>
-        <Typography
-          fontWeight={700}
-          sx={{
-            minHeight: 42,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
+      <div
+        style={{
+          fontWeight: 700,
+          fontSize: isSmall ? 12 : isMedium ? 14 : 16,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+        }}
+      >
+        {safeProduct.name}
+      </div>
+
+      <div style={{ fontWeight: 800, fontSize: isSmall ? 13 : 15, color: "#16a34a" }}>
+        ₹{displayPrice.toFixed(2)}
+        <span style={{ fontSize: 11, color: "#6b7280", marginLeft: 4 }}>
+          / {selectedUnit.name}
+        </span>
+      </div>
+
+      {metaInfo && (
+        <div
+          style={{
+            fontSize: 11,
+            color: "#6b7280",
+            whiteSpace: "nowrap",
             overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+          title={metaInfo}
+        >
+          {metaInfo}
+        </div>
+      )}
+
+      {orderMode && !activeCartItem && (
+        <button
+          onClick={() => onAdd?.(safeProduct, selectedUnit)}
+          style={{
+            padding: isSmall ? "6px 0" : "10px 0",
+            borderRadius: 12,
+            border: "none",
+            background: "#2563eb",
+            color: "#fff",
+            fontWeight: 700,
+            fontSize: isSmall ? 12 : 14,
+            cursor: "pointer",
           }}
         >
-          {safeProduct.name}
-        </Typography>
+          Add
+        </button>
+      )}
 
-        <Typography sx={{ fontWeight: 800, color: "#16a34a" }}>
-          ₹{displayPrice.toFixed(2)}
-          <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
-            / {selectedUnit.name}
-          </Typography>
-        </Typography>
+      {orderMode && activeCartItem && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <button
+            onClick={() => onDec?.(safeProduct.id, selectedUnit.name)}
+            style={{
+              width: isSmall ? 28 : 36,
+              height: isSmall ? 28 : 36,
+              borderRadius: "50%",
+              border: "none",
+              background: "#e5e7eb",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            −
+          </button>
 
-        {metaInfo && (
-          <Typography variant="caption" color="text.secondary" title={metaInfo} noWrap>
-            {metaInfo}
-          </Typography>
-        )}
-      </CardContent>
+          <strong>{activeCartItem.qty}</strong>
 
-      {orderMode && (
-        <CardActions sx={{ px: 1.5, pb: 1.5, pt: 0, mt: "auto" }}>
-          {!activeCartItem ? (
-            <Button
-              fullWidth
-              variant="contained"
-              disabled={out}
-              onClick={() => onAdd?.(safeProduct, selectedUnit)}
-              sx={{ textTransform: "none", bgcolor: "#2563eb", borderRadius: 2 }}
-            >
-              Add
-            </Button>
-          ) : (
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ width: "100%", justifyContent: "space-between" }}>
-              <Button variant="outlined" onClick={() => onDec?.(safeProduct.id, selectedUnit.name)}>
-                −
-              </Button>
-              <Typography fontWeight={800}>{activeCartItem.qty}</Typography>
-              <Button variant="outlined" onClick={() => onInc?.(safeProduct.id, selectedUnit.name)}>
-                +
-              </Button>
-            </Stack>
-          )}
-        </CardActions>
+          <button
+            onClick={() => onInc?.(safeProduct.id, selectedUnit.name)}
+            style={{
+              width: isSmall ? 28 : 36,
+              height: isSmall ? 28 : 36,
+              borderRadius: "50%",
+              border: "none",
+              background: "#e5e7eb",
+              fontWeight: 800,
+              cursor: "pointer",
+            }}
+          >
+            +
+          </button>
+        </div>
       )}
     </Card>
   );

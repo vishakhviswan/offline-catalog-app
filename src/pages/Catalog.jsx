@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   Badge,
   Box,
+  Card,
+  CardActions,
+  CardContent,
+  CardMedia,
   Chip,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  Divider,
   FormControlLabel,
   Grid,
   IconButton,
@@ -14,29 +14,161 @@ import {
   Stack,
   Switch,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
   Button,
 } from "@mui/material";
 import ClearIcon from "@mui/icons-material/Clear";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import ProductCard from "../components/ProductCard";
 
-const columnToLayout = {
-  1: "list",
-  2: "grid-2",
-  3: "grid-3",
-  4: "grid-4",
-};
+function normalizeUnits(units) {
+  if (!Array.isArray(units) || units.length === 0) {
+    return [{ name: "pcs", multiplier: 1 }];
+  }
 
-const layoutToColumn = {
-  list: 1,
-  "grid-2": 2,
-  "grid-3": 3,
-  "grid-4": 4,
-};
+  const validUnits = units.filter(
+    (u) => u && typeof u.name === "string" && typeof u.multiplier === "number",
+  );
+
+  return validUnits.length ? validUnits : [{ name: "pcs", multiplier: 1 }];
+}
+
+function CatalogProductCard({
+  product,
+  cart,
+  onView,
+  onAdd,
+  onInc,
+  onDec,
+  orderMode,
+  viewOnly = false,
+  badgeText,
+  summaryText,
+}) {
+  const units = normalizeUnits(product.units);
+  const selectedUnit = units[0];
+
+  const activeCartItem = cart.find(
+    (c) => c.productId === product.id && c.unitName === selectedUnit.name,
+  );
+
+  const out = (product.stock ?? 0) <= 0;
+
+  return (
+    <Card
+      elevation={2}
+      sx={{
+        height: "100%",
+        borderRadius: 2,
+        opacity: out ? 0.55 : 1,
+        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+        "&:hover": {
+          transform: { md: "scale(1.02)" },
+          boxShadow: { md: 8 },
+        },
+      }}
+    >
+      <Box sx={{ position: "relative" }}>
+        <CardMedia
+          component="img"
+          height="150"
+          image={product.images?.[0] || ""}
+          alt={product.name}
+          sx={{ objectFit: product.images?.[0] ? "cover" : "contain", bgcolor: "#f9fafb", cursor: "pointer" }}
+          onClick={() => onView?.(product)}
+        />
+
+        {!product.images?.[0] && (
+          <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              display: "grid",
+              placeItems: "center",
+              fontSize: 32,
+              pointerEvents: "none",
+            }}
+          >
+            📦
+          </Box>
+        )}
+
+        {badgeText && (
+          <Chip
+            label={badgeText}
+            size="small"
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              bgcolor: "#f59e0b",
+              color: "#111827",
+              fontWeight: 700,
+            }}
+          />
+        )}
+
+        {out && (
+          <Chip
+            label="Out of stock"
+            size="small"
+            sx={{
+              position: "absolute",
+              top: 8,
+              left: 8,
+              bgcolor: "#ef4444",
+              color: "#fff",
+              fontWeight: 700,
+            }}
+          />
+        )}
+      </Box>
+
+      <CardContent sx={{ pb: 1 }}>
+        <Typography fontWeight={700} noWrap>
+          {product.name}
+        </Typography>
+        <Typography sx={{ color: "#16a34a", fontWeight: 800 }}>
+          ₹{(product.price * (selectedUnit.multiplier || 1)).toFixed(2)}
+          <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+            / {selectedUnit.name}
+          </Typography>
+        </Typography>
+        {summaryText && (
+          <Typography variant="caption" color="text.secondary" noWrap title={summaryText}>
+            {summaryText}
+          </Typography>
+        )}
+      </CardContent>
+
+      {!viewOnly && orderMode && (
+        <CardActions sx={{ pt: 0, px: 2, pb: 2 }}>
+          {!activeCartItem ? (
+            <Button
+              fullWidth
+              variant="contained"
+              disabled={out}
+              onClick={() => onAdd?.(product, selectedUnit)}
+              sx={{ borderRadius: 2, textTransform: "none", bgcolor: "#2563eb" }}
+            >
+              Add
+            </Button>
+          ) : (
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ width: "100%", justifyContent: "space-between" }}>
+              <Button variant="outlined" onClick={() => onDec?.(product.id, selectedUnit.name)}>
+                −
+              </Button>
+              <Typography fontWeight={700}>{activeCartItem.qty}</Typography>
+              <Button variant="outlined" onClick={() => onInc?.(product.id, selectedUnit.name)}>
+                +
+              </Button>
+            </Stack>
+          )}
+        </CardActions>
+      )}
+    </Card>
+  );
+}
 
 export default function Catalog({
   categories = [],
@@ -61,26 +193,14 @@ export default function Catalog({
   setMostSellingOnly,
   orders = [],
   customerName = "",
-  layoutMode = "grid-3",
 }) {
-  const categoryScrollRef = useRef(null);
-  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-
-  const selectedCategoryObj = useMemo(
-    () => categories.find((c) => String(c.id) === String(selectedCategory)),
-    [categories, selectedCategory],
-  );
-
-  const remainingCategories = useMemo(() => {
-    if (!selectedCategoryObj) return categories;
-    return categories.filter((c) => String(c.id) !== String(selectedCategoryObj.id));
-  }, [categories, selectedCategoryObj]);
+  const categoryRefs = useRef({});
 
   const mostSellingProducts = useMemo(() => {
     const repeatMap = {};
 
     orders.forEach((order) => {
-      (order.order_items || []).forEach((item) => {
+      order.order_items?.forEach((item) => {
         const productId = String(item.product_id);
         repeatMap[productId] = (repeatMap[productId] || 0) + 1;
       });
@@ -101,7 +221,7 @@ export default function Catalog({
     const aggregateMap = {};
 
     customerOrders.forEach((order) => {
-      (order.order_items || []).forEach((item) => {
+      order.order_items?.forEach((item) => {
         const key = String(item.product_id);
         const qty = Number(item.qty || 0);
         const unitMultiplier = Number(item.unit_multiplier || 1);
@@ -195,192 +315,113 @@ export default function Catalog({
   }, [previousOrderedProducts, filtered]);
 
   useEffect(() => {
-    if (categoryScrollRef.current) {
-      categoryScrollRef.current.scrollTo({ left: 0, behavior: "auto" });
+    const active = categoryRefs.current[String(selectedCategory || "all")];
+    if (active) {
+      active.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
     }
   }, [selectedCategory]);
 
-  const gridColumns = useMemo(() => {
-    const col = layoutToColumn[layoutMode] || 3;
-    if (col === 1) return { xs: 12, sm: 12, md: 12, lg: 12 };
-    if (col === 2) return { xs: 6, sm: 6, md: 6, lg: 6 };
-    if (col === 3) return { xs: 6, sm: 4, md: 4, lg: 3 };
-    return { xs: 6, sm: 4, md: 3, lg: 3 };
-  }, [layoutMode]);
-
   return (
     <Box sx={{ maxWidth: 1400, mx: "auto", px: { xs: 1.5, sm: 2 }, pb: 11 }}>
-      <Paper sx={{ p: 1.5, mb: 2, bgcolor: "#f9fafb", borderRadius: 2, boxShadow: "0 4px 16px rgba(15,23,42,0.08)" }}>
-        <Stack spacing={1.4}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }}>
-            <TextField
-              value={search || ""}
-              onChange={(e) => setSearch?.(e.target.value)}
-              size="small"
-              fullWidth
-              placeholder="Search products"
-              InputProps={{
-                endAdornment: (search || "") ? (
-                  <IconButton size="small" onClick={() => setSearch?.("")}>
-                    <ClearIcon fontSize="small" />
-                  </IconButton>
-                ) : null,
-              }}
-            />
+      <Paper sx={{ p: 1.5, mb: 2, bgcolor: "#f9fafb", borderRadius: 2 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ xs: "stretch", sm: "center" }}>
+          <TextField
+            value={search || ""}
+            onChange={(e) => {
+              setSearch?.(e.target.value);
+            }}
+            size="small"
+            fullWidth
+            placeholder="Search products"
+            InputProps={{
+              endAdornment: (search || "") ? (
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setSearch?.("");
+                  }}
+                >
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              ) : null,
+            }}
+          />
 
-            <ToggleButtonGroup
-              exclusive
-              size="small"
-              value={layoutToColumn[layoutMode] || 3}
-              onChange={(_, value) => {
-                if (!value) return;
-                setLayoutMode?.(columnToLayout[value]);
-              }}
-            >
-              <ToggleButton value={1}>1</ToggleButton>
-              <ToggleButton value={2}>2</ToggleButton>
-              <ToggleButton value={3}>3</ToggleButton>
-              <ToggleButton value={4}>4</ToggleButton>
-            </ToggleButtonGroup>
-          </Stack>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={mostSellingOnly}
+                onChange={() => setMostSellingOnly(!mostSellingOnly)}
+                sx={{ "& .MuiSwitch-switchBase.Mui-checked": { color: "#2563eb" } }}
+              />
+            }
+            label="Most Selling Only"
+          />
 
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.2}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={mostSellingOnly}
-                  onChange={() => setMostSellingOnly(!mostSellingOnly)}
-                  sx={{ "& .MuiSwitch-switchBase.Mui-checked": { color: "#2563eb" } }}
-                />
-              }
-              label="Most Selling Only"
-            />
-
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={showOutOfStock}
-                  onChange={() => setShowOutOfStock(!showOutOfStock)}
-                  sx={{ "& .MuiSwitch-switchBase.Mui-checked": { color: "#16a34a" } }}
-                />
-              }
-              label="Show Out of Stock"
-            />
-          </Stack>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showOutOfStock}
+                onChange={() => setShowOutOfStock(!showOutOfStock)}
+                sx={{ "& .MuiSwitch-switchBase.Mui-checked": { color: "#16a34a" } }}
+              />
+            }
+            label="Show Out of Stock"
+          />
         </Stack>
       </Paper>
 
-      <Paper
-        sx={{
-          position: "sticky",
-          top: 72,
-          zIndex: 15,
-          p: 1,
-          mb: 2,
-          borderRadius: 2,
-          bgcolor: "#f9fafb",
-          boxShadow: "0 4px 16px rgba(15,23,42,0.08)",
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box sx={{ position: "sticky", left: 0, zIndex: 4, display: "flex", gap: 1, pr: 1, bgcolor: "#f9fafb" }}>
-            <Chip
-              label="All"
-              clickable
-              color={selectedCategory === "all" ? "primary" : "default"}
-              variant={selectedCategory === "all" ? "filled" : "outlined"}
-              onClick={() => {
-                if (selectedCategory === "all") {
-                  setCategoryModalOpen(true);
-                } else {
-                  setSelectedCategory("all");
-                }
-              }}
-            />
-
-            {selectedCategory !== "all" && selectedCategoryObj && (
-              <Chip
-                label={selectedCategoryObj.name}
-                clickable
-                color="primary"
-                variant="filled"
-                onClick={() => setSelectedCategory(selectedCategoryObj.id)}
-              />
-            )}
-          </Box>
-
-          <Box
-            ref={categoryScrollRef}
-            sx={{
-              display: "flex",
-              gap: 1,
-              overflowX: "auto",
-              pb: 0.5,
-              scrollBehavior: "smooth",
-              "&::-webkit-scrollbar": { display: "none" },
+      <Paper sx={{ p: 1.25, mb: 2, bgcolor: "#f9fafb", position: "sticky", top: 0, zIndex: 15 }}>
+        <Stack direction="row" spacing={1} sx={{ overflowX: "auto", pb: 0.5, "&::-webkit-scrollbar": { display: "none" } }}>
+          <Chip
+            ref={(el) => {
+              categoryRefs.current.all = el;
             }}
-          >
-            {remainingCategories.map((c) => (
-              <Chip
-                key={c.id}
-                label={c.name}
-                clickable
-                color={String(selectedCategory) === String(c.id) ? "primary" : "default"}
-                variant={String(selectedCategory) === String(c.id) ? "filled" : "outlined"}
-                onClick={() => setSelectedCategory(c.id)}
-              />
-            ))}
-          </Box>
-        </Box>
+            label="All"
+            clickable
+            color={selectedCategory === "all" ? "primary" : "default"}
+            variant={selectedCategory === "all" ? "filled" : "outlined"}
+            onClick={() => setSelectedCategory("all")}
+          />
+          {categories.map((c) => (
+            <Chip
+              key={c.id}
+              ref={(el) => {
+                categoryRefs.current[String(c.id)] = el;
+              }}
+              label={c.name}
+              clickable
+              color={String(selectedCategory) === String(c.id) ? "primary" : "default"}
+              variant={String(selectedCategory) === String(c.id) ? "filled" : "outlined"}
+              onClick={() => setSelectedCategory(c.id)}
+            />
+          ))}
+        </Stack>
       </Paper>
 
-      <Dialog open={categoryModalOpen} onClose={() => setCategoryModalOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Choose Category</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={1.25} sx={{ pt: 0.5 }}>
-            {categories.map((c) => (
-              <Grid item xs={6} sm={4} key={`modal-cat-${c.id}`}>
-                <Chip
-                  label={c.name}
-                  clickable
-                  color={String(selectedCategory) === String(c.id) ? "primary" : "default"}
-                  variant={String(selectedCategory) === String(c.id) ? "filled" : "outlined"}
-                  onClick={() => {
-                    setSelectedCategory(c.id);
-                    setCategoryModalOpen(false);
-                  }}
-                  sx={{ width: "100%", justifyContent: "center" }}
-                />
-              </Grid>
-            ))}
-          </Grid>
-        </DialogContent>
-      </Dialog>
-
       {customerName && visiblePrevious.length > 0 && (
-        <Paper sx={{ p: 2, mb: 2, borderRadius: 2, bgcolor: "#f9fafb", boxShadow: "0 4px 16px rgba(15,23,42,0.08)" }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.2}>
+        <Paper sx={{ p: 2, mb: 2, borderRadius: 2, bgcolor: "#f9fafb" }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
             <Typography fontWeight={800}>Previously Ordered by {customerName}</Typography>
-            <Badge color="warning" badgeContent={visiblePrevious.length} max={1000000}>
+            <Badge color="warning" badgeContent={visiblePrevious.length}>
               <TrendingUpIcon />
             </Badge>
           </Stack>
-          <Divider sx={{ mb: 1.5 }} />
 
           <Grid container spacing={1.5}>
             {visiblePrevious.map((p) => (
-              <Grid item key={`prev-${p.id}`} {...gridColumns}>
-                <ProductCard
+              <Grid item key={`prev-${p.id}`} xs={6} sm={4} md={3}>
+                <CatalogProductCard
                   product={p}
                   cart={cart}
                   onView={setViewProduct}
                   onAdd={addToCart}
                   onInc={increaseQty}
                   onDec={decreaseQty}
-                  orderMode={orderMode}
-                  out={(p.stock ?? 0) <= 0}
-                  topBadge="Previously Ordered"
-                  metaInfo={`Qty ${p.previousStats.totalQtyPurchased} • Orders ${p.previousStats.totalTimesOrdered} • ₹${p.previousStats.totalAmountPurchased.toFixed(0)}`}
+                  orderMode={false}
+                  viewOnly
+                  badgeText="Previously Ordered"
+                  summaryText={`Qty ${p.previousStats.totalQtyPurchased} • Orders ${p.previousStats.totalTimesOrdered} • ₹${p.previousStats.totalAmountPurchased.toFixed(0)}`}
                 />
               </Grid>
             ))}
@@ -388,18 +429,17 @@ export default function Catalog({
         </Paper>
       )}
 
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.1}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1.5}>
         <Typography fontWeight={800}>Products</Typography>
-        <Badge color="primary" badgeContent={filtered.length} max={1000000}>
+        <Badge color="primary" badgeContent={filtered.length}>
           <Inventory2Icon />
         </Badge>
       </Stack>
-      <Divider sx={{ mb: 1.5 }} />
 
       <Grid container spacing={1.5}>
         {filtered.map((p) => (
-          <Grid item key={p.id} {...gridColumns}>
-            <ProductCard
+          <Grid item key={p.id} xs={6} sm={4} md={3}>
+            <CatalogProductCard
               product={p}
               cart={cart}
               onView={setViewProduct}
@@ -407,7 +447,6 @@ export default function Catalog({
               onInc={increaseQty}
               onDec={decreaseQty}
               orderMode={orderMode}
-              out={(p.stock ?? 0) <= 0}
             />
           </Grid>
         ))}

@@ -74,22 +74,6 @@ function App() {
         throw new Error(data.error || "Order save failed");
       }
 
-      const createdOrder = data?.order || data?.data || data;
-
-      if (!createdOrder) return;
-
-      setOrders((prev) => {
-        const next = [createdOrder, ...prev];
-        if (!createdOrder?.id) return next;
-        const seen = new Set();
-        return next.filter((order, index) => {
-          const key = order?.id ?? `no-id-${index}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
-      });
-
       let msg = `*MANGALYA AGENCIES*\n\n`;
       msg += `Customer: ${customerName || "Walk-in"}\n\n`;
 
@@ -294,7 +278,6 @@ function App() {
     imageFilter,
     sortOption,
     layoutMode,
-    setLayoutMode,
     showOutOfStock,
     setShowOutOfStock,
     mostSellingOnly,
