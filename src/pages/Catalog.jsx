@@ -382,8 +382,8 @@ export default function Catalog({
 
   const gridColumns = {
     "grid-1": { xs: 12 },
-    "grid-2": { xs: 6, md: 6 },
-    "grid-3": { xs: 6, sm: 4, md: 4 },
+    "grid-2": { xs: 6 },
+    "grid-3": { xs: 6, sm: 4 },
     "grid-4": { xs: 6, sm: 4, md: 3 },
   };
 
@@ -560,7 +560,7 @@ export default function Catalog({
 
           <Grid container spacing={{ xs: 1.5, sm: 2 }}>
             {visiblePrevious.map((p) => (
-              <Grid item key={`prev-${p.id}`} {...currentGrid} sx={{ transition: "all 260ms ease" }}>
+              <Grid item key={`prev-${p.id}`} {...currentGrid}>
                 <CatalogProductCard
                   product={p}
                   cart={cart}
@@ -588,7 +588,7 @@ export default function Catalog({
 
       <Grid container spacing={{ xs: 1.5, sm: 2.25 }}>
         {filtered.map((p) => (
-          <Grid item key={p.id} {...currentGrid} sx={{ transition: "all 260ms ease" }}>
+          <Grid item key={p.id} {...currentGrid}>
             <CatalogProductCard
               product={p}
               cart={cart}
