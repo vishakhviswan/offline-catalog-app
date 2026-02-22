@@ -98,7 +98,7 @@ export default function ProductCard({
             }}
           >
             📦
-          </Box>
+          </div>
         )}
 
         {topBadge && (
@@ -243,6 +243,6 @@ export default function ProductCard({
           </button>
         </div>
       )}
-    </Card>
+    </div>
   );
 }
