@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
+import { Box, Button, Card, Chip, Stack, Typography } from "@mui/material";
 
 function normalizeUnits(units) {
   if (!Array.isArray(units)) {
@@ -23,80 +24,74 @@ export default function ProductCard({
   out = false,
   topBadge,
   metaInfo,
+  layoutMode = "grid-3",
 }) {
   const safeProduct = product || { id: null, units: [], price: 0, name: "" };
-
   const units = normalizeUnits(safeProduct.units);
-  const isSmall = layoutMode === "grid-4";
-  const isMedium = layoutMode === "grid-3";
-  const [isHover, setIsHover] = useState(false);
   const selectedUnit = units[0];
 
-  const canHoverDesktop =
-    typeof window !== "undefined" &&
-    window.matchMedia("(min-width: 900px) and (hover: hover)").matches;
+  const compact = layoutMode === "grid-4";
 
-  const activeCartItem = useMemo(() => {
-    return cart.find(
-      (c) => c.productId === safeProduct.id && c.unitName === selectedUnit.name,
-    );
-  }, [cart, safeProduct.id, selectedUnit]);
+  const activeCartItem = useMemo(
+    () =>
+      cart.find(
+        (c) => c.productId === safeProduct.id && c.unitName === selectedUnit.name,
+      ),
+    [cart, safeProduct.id, selectedUnit.name],
+  );
 
-  const displayPrice = useMemo(() => {
-    return safeProduct.price * (selectedUnit.multiplier || 1);
-  }, [safeProduct.price, selectedUnit]);
+  const displayPrice = useMemo(
+    () => safeProduct.price * (selectedUnit.multiplier || 1),
+    [safeProduct.price, selectedUnit.multiplier],
+  );
 
   if (!product) return null;
 
   return (
-    <div
-      onMouseEnter={() => canHoverDesktop && setIsHover(true)}
-      onMouseLeave={() => setIsHover(false)}
-      style={{
-        background: "#fff",
-        borderRadius: isSmall ? 12 : 18,
-        padding: isSmall ? 8 : 12,
-        boxShadow: "0 8px 22px rgba(0,0,0,0.08)",
+    <Card
+      elevation={0}
+      sx={{
+        height: "100%",
+        p: compact ? 1 : 1.5,
+        borderRadius: 2.25,
+        border: "1px solid rgba(148,163,184,0.2)",
+        boxShadow: "0 10px 24px rgba(15,23,42,0.08)",
+        background: "linear-gradient(145deg, #ffffff, #f8fafc)",
+        opacity: out ? 0.55 : 1,
+        transition: "transform 240ms ease, box-shadow 240ms ease",
         display: "flex",
         flexDirection: "column",
-        gap: isSmall ? 6 : 8,
-        width: "100%",
-        minWidth: 0,
-        opacity: out ? 0.5 : 1,
-        filter: out ? "grayscale(100%)" : "none",
-        transform: isHover ? "scale(1.02)" : "scale(1)",
-        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+        gap: 1,
+        "@media (hover: hover) and (pointer: fine)": {
+          "&:hover": {
+            transform: "translateY(-4px)",
+            boxShadow: "0 16px 28px rgba(15,23,42,0.12)",
+          },
+        },
       }}
     >
-      <div
-        style={{
+      <Box
+        sx={{
           width: "100%",
           aspectRatio: "1 / 1",
-          background: "#f3f4f6",
-          borderRadius: isSmall ? 10 : 14,
+          bgcolor: "#f1f5f9",
+          borderRadius: 2,
           overflow: "hidden",
           cursor: "pointer",
           position: "relative",
+          boxShadow: "inset 0 0 0 1px rgba(148,163,184,0.2), 0 6px 18px rgba(15,23,42,0.08)",
         }}
         onClick={() => onView?.(safeProduct)}
       >
         {safeProduct.images?.[0] ? (
-          <img
-            src={safeProduct.images?.[0]}
+          <Box
+            component="img"
+            src={safeProduct.images[0]}
             alt={safeProduct.name}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            sx={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: isSmall ? 22 : 32,
-            }}
-          >
+          <Box sx={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: compact ? 22 : 32 }}>
             📦
           </Box>
         )}
@@ -105,143 +100,63 @@ export default function ProductCard({
           <Chip
             label={topBadge}
             size="small"
-            sx={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              bgcolor: "#f59e0b",
-              color: "#111827",
-              fontWeight: 700,
-            }}
+            sx={{ position: "absolute", top: 8, right: 8, bgcolor: "#f59e0b", color: "#111827", fontWeight: 700 }}
           />
-        )}
-
-        {topBadge && (
-          <div
-            style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              background: "#f59e0b",
-              color: "#111827",
-              padding: "4px 8px",
-              borderRadius: 999,
-              fontSize: 10,
-              fontWeight: 700,
-            }}
-          >
-            {topBadge}
-          </div>
         )}
 
         {out && (
           <Chip
             label="Out of stock"
             size="small"
-            sx={{
-              position: "absolute",
-              top: 8,
-              left: 8,
-              bgcolor: "#ef4444",
-              color: "#fff",
-              fontWeight: 700,
-            }}
+            sx={{ position: "absolute", top: 8, left: 8, bgcolor: "#ef4444", color: "#fff", fontWeight: 700 }}
           />
         )}
-      </div>
+      </Box>
 
-      <div
-        style={{
-          fontWeight: 700,
-          fontSize: isSmall ? 12 : isMedium ? 14 : 16,
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
-      >
+      <Typography sx={{ fontWeight: 700, fontSize: compact ? 13 : 15 }} noWrap>
         {safeProduct.name}
-      </div>
+      </Typography>
 
-      <div style={{ fontWeight: 800, fontSize: isSmall ? 13 : 15, color: "#16a34a" }}>
+      <Typography sx={{ fontWeight: 800, fontSize: compact ? 14 : 16, color: "#16a34a" }}>
         ₹{displayPrice.toFixed(2)}
-        <span style={{ fontSize: 11, color: "#6b7280", marginLeft: 4 }}>
+        <Typography component="span" sx={{ fontSize: 11, color: "#64748b", ml: 0.5 }}>
           / {selectedUnit.name}
-        </span>
-      </div>
+        </Typography>
+      </Typography>
 
       {metaInfo && (
-        <div
-          style={{
-            fontSize: 11,
-            color: "#6b7280",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-          title={metaInfo}
-        >
+        <Typography variant="caption" color="text.secondary" noWrap title={metaInfo}>
           {metaInfo}
-        </div>
+        </Typography>
       )}
 
       {orderMode && !activeCartItem && (
-        <button
+        <Button
           onClick={() => onAdd?.(safeProduct, selectedUnit)}
-          style={{
-            padding: isSmall ? "6px 0" : "10px 0",
-            borderRadius: 12,
-            border: "none",
-            background: "#2563eb",
+          sx={{
+            mt: "auto",
+            borderRadius: 99,
+            background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
             color: "#fff",
             fontWeight: 700,
-            fontSize: isSmall ? 12 : 14,
-            cursor: "pointer",
+            py: 0.9,
+            "&:hover": { opacity: 0.9 },
           }}
         >
           Add
-        </button>
+        </Button>
       )}
 
       {orderMode && activeCartItem && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <button
-            onClick={() => onDec?.(safeProduct.id, selectedUnit.name)}
-            style={{
-              width: isSmall ? 28 : 36,
-              height: isSmall ? 28 : 36,
-              borderRadius: "50%",
-              border: "none",
-              background: "#e5e7eb",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
+        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mt: "auto", p: 0.5, borderRadius: 99, bgcolor: "#eff6ff", border: "1px solid rgba(37,99,235,0.2)" }}>
+          <Button onClick={() => onDec?.(safeProduct.id, selectedUnit.name)} sx={{ minWidth: 34, borderRadius: 99, bgcolor: "#e2e8f0", color: "#0f172a", px: 0 }}>
             −
-          </button>
-
-          <strong>{activeCartItem.qty}</strong>
-
-          <button
-            onClick={() => onInc?.(safeProduct.id, selectedUnit.name)}
-            style={{
-              width: isSmall ? 28 : 36,
-              height: isSmall ? 28 : 36,
-              borderRadius: "50%",
-              border: "none",
-              background: "#e5e7eb",
-              fontWeight: 800,
-              cursor: "pointer",
-            }}
-          >
+          </Button>
+          <Typography fontWeight={800}>{activeCartItem.qty}</Typography>
+          <Button onClick={() => onInc?.(safeProduct.id, selectedUnit.name)} sx={{ minWidth: 34, borderRadius: 99, bgcolor: "#2563eb", color: "#fff", px: 0 }}>
             +
-          </button>
-        </div>
+          </Button>
+        </Stack>
       )}
     </Card>
   );
