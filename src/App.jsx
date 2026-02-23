@@ -1,9 +1,22 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { Alert, Button } from "@mui/material";
 import NavBar from "./components/NavBar";
 import CartSheet from "./components/CartSheet";
 import FilterDrawer from "./components/FilterDrawer";
 import AppRoutes from "./AppRoutes";
+import {
+  loadCategoriesCache,
+  loadCustomersCache,
+  loadOrdersCache,
+  loadProductsCache,
+  saveCategoriesCache,
+  saveCustomersCache,
+  saveOrdersCache,
+  saveProductsCache,
+} from "./db";
+
+const API_BASE = "https://offline-catalog-backend-production.up.railway.app";
 
 function App() {
   const navigate = useNavigate();
@@ -21,6 +34,7 @@ function App() {
   const [customerName, setCustomerName] = useState("");
 
   const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
 
   const [search, setSearch] = useState("");
   const [showCart, setShowCart] = useState(false);
@@ -34,6 +48,8 @@ function App() {
   const [imageFilter, setImageFilter] = useState("all");
   const [sortOption, setSortOption] = useState("default");
   const [layoutMode, setLayoutMode] = useState("grid-3");
+  const [showByCategory, setShowByCategory] = useState(false);
+  const [fetchError, setFetchError] = useState("");
 
   const isCatalogRoute = location.pathname === "/";
 
@@ -53,25 +69,42 @@ function App() {
     if (cart.length === 0) return;
 
     try {
-      const response = await fetch(
-        "https://offline-catalog-backend-production.up.railway.app/api/orders",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            customer_id: null,
-            customer_name: customerName || "Walk-in",
-            items: cart,
-          }),
+      const response = await fetch(`${API_BASE}/api/orders`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          customer_id: null,
+          customer_name: customerName || "Walk-in",
+          items: cart,
+        }),
+      });
 
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || "Order save failed");
+      }
+
+      try {
+        const ordersRes = await fetch(`${API_BASE}/api/orders`);
+        if (ordersRes.ok) {
+          const ordersData = await ordersRes.json();
+          if (Array.isArray(ordersData)) {
+            setOrders(ordersData);
+            saveOrdersCache(ordersData).catch((error) => {
+              console.error("Orders cache save failed:", error);
+            });
+          } else if (Array.isArray(ordersData?.orders)) {
+            setOrders(ordersData.orders);
+            saveOrdersCache(ordersData.orders).catch((error) => {
+              console.error("Orders cache save failed:", error);
+            });
+          }
+        }
+      } catch (refreshErr) {
+        console.error("Orders refresh after checkout failed:", refreshErr);
       }
 
       let msg = `*MANGALYA AGENCIES*\n\n`;
@@ -82,7 +115,7 @@ function App() {
           Number(c.qty) * Number(c.price) * Number(c.unitMultiplier || 1);
 
         msg += `${i + 1}) ${c.name}\n`;
-        msg += `   ${c.qty} ${c.unitName} × ₹${c.price} = ₹${lineTotal}\n\n`;
+        msg += `   ${c.qty} ${c.unitName} x Rs ${c.price} = Rs ${lineTotal}\n\n`;
       });
 
       const grandTotal = cart.reduce(
@@ -91,7 +124,7 @@ function App() {
         0,
       );
 
-      msg += `------------------\nTotal: ₹${grandTotal}`;
+      msg += `------------------\nTotal: Rs ${grandTotal}`;
       const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
       window.open(whatsappUrl, "_blank");
 
@@ -101,18 +134,15 @@ function App() {
       setShowCart(false);
     } catch (err) {
       console.error("Checkout error:", err);
-      alert("Order save failed ❌");
+      alert("Order save failed");
     }
   }
 
   async function handleDeleteOrder(orderId) {
     try {
-      const res = await fetch(
-        `https://offline-catalog-backend-production.up.railway.app/api/orders/${orderId}`,
-        {
-          method: "DELETE",
-        },
-      );
+      const res = await fetch(`${API_BASE}/api/orders/${orderId}`, {
+        method: "DELETE",
+      });
 
       const data = await res.json();
 
@@ -120,10 +150,52 @@ function App() {
         throw new Error(data.error || "Delete failed");
       }
 
-      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      setOrders((prev) => {
+        const next = prev.filter((o) => o.id !== orderId);
+        saveOrdersCache(next).catch((error) => {
+          console.error("Orders cache save failed:", error);
+        });
+        return next;
+      });
+      return true;
     } catch (err) {
       console.error("Delete error:", err);
-      alert("Delete failed ❌");
+      alert("Delete failed");
+      return false;
+    }
+  }
+
+  async function fetchList(
+    endpoint,
+    setData,
+    label,
+    transform,
+    { onSuccess, resetOnError = false } = {},
+  ) {
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const payload = await response.json();
+      const next = transform ? transform(payload) : payload;
+      const list = Array.isArray(next) ? next : [];
+      setData(list);
+      setFetchError("");
+
+      if (onSuccess) {
+        onSuccess(list);
+      }
+
+      return list;
+    } catch (error) {
+      console.error(`Failed to fetch ${label}:`, error);
+      if (resetOnError) {
+        setData([]);
+      }
+      setFetchError(`Could not load ${label}. Check connection and retry.`);
+      return null;
     }
   }
 
@@ -224,39 +296,193 @@ function App() {
   }, [cart, cartLoaded]);
 
   useEffect(() => {
-    fetch(
-      "https://offline-catalog-backend-production.up.railway.app/api/categories",
-    )
-      .then((r) => r.json())
-      .then((d) => setCategories(Array.isArray(d) ? d : []));
-  }, []);
+    let cancelled = false;
 
-  useEffect(() => {
-    fetch("https://offline-catalog-backend-production.up.railway.app/api/products")
-      .then((r) => r.json())
-      .then((d) => setProducts(Array.isArray(d) ? d : []));
-  }, []);
-
-  useEffect(() => {
-    fetch(
-      "https://offline-catalog-backend-production.up.railway.app/api/customers",
-    )
-      .then((r) => r.json())
-      .then((d) => setCustomers(Array.isArray(d) ? d : []));
-  }, []);
-
-  useEffect(() => {
-    fetch("https://offline-catalog-backend-production.up.railway.app/api/orders")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setOrders(data);
-        } else if (Array.isArray(data?.orders)) {
-          setOrders(data.orders);
-        } else {
-          setOrders([]);
+    (async () => {
+      try {
+        const cachedCategories = await loadCategoriesCache();
+        if (!cancelled && cachedCategories.length) {
+          setCategories(cachedCategories);
         }
+      } catch (error) {
+        console.error("Categories cache read failed:", error);
+      }
+
+      await fetchList(
+        "/api/categories",
+        (next) => {
+          if (!cancelled) {
+            setCategories(next);
+          }
+        },
+        "categories",
+        undefined,
+        {
+          onSuccess: (next) => {
+            saveCategoriesCache(next).catch((error) => {
+              console.error("Categories cache save failed:", error);
+            });
+          },
+        },
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const cachedProducts = await loadProductsCache();
+        if (!cancelled && cachedProducts.length) {
+          setProducts(cachedProducts);
+        }
+      } catch (error) {
+        console.error("Products cache read failed:", error);
+      }
+
+      await fetchList(
+        "/api/products",
+        (next) => {
+          if (!cancelled) {
+            setProducts(next);
+          }
+        },
+        "products",
+        undefined,
+        {
+          onSuccess: (nextProducts) => {
+            saveProductsCache(nextProducts).catch((error) => {
+              console.error("Products cache save failed:", error);
+            });
+          },
+        },
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const cachedCustomers = await loadCustomersCache();
+        if (!cancelled && cachedCustomers.length) {
+          setCustomers(cachedCustomers);
+        }
+      } catch (error) {
+        console.error("Customers cache read failed:", error);
+      }
+    })();
+
+    const run = () =>
+      fetchList(
+        "/api/customers",
+        (next) => {
+          if (!cancelled) {
+            setCustomers(next);
+          }
+        },
+        "customers",
+        undefined,
+        {
+          onSuccess: (nextCustomers) => {
+            saveCustomersCache(nextCustomers).catch((error) => {
+              console.error("Customers cache save failed:", error);
+            });
+          },
+        },
+      );
+
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(run);
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(id);
+      };
+    }
+
+    const timeoutId = setTimeout(run, 250);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const ordersTransform = (data) => {
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.orders)) return data.orders;
+      return [];
+    };
+
+    const runNetworkRefresh = async () => {
+      await fetchList(
+        "/api/orders",
+        (next) => {
+          if (!cancelled) {
+            setOrders(next);
+          }
+        },
+        "orders",
+        ordersTransform,
+        {
+          onSuccess: (nextOrders) => {
+            saveOrdersCache(nextOrders).catch((error) => {
+              console.error("Orders cache save failed:", error);
+            });
+          },
+        },
+      );
+
+      if (!cancelled) {
+        setOrdersLoading(false);
+      }
+    };
+
+    const run = async () => {
+      setOrdersLoading(true);
+
+      try {
+        const cachedOrders = await loadOrdersCache();
+        if (!cancelled && cachedOrders.length) {
+          setOrders(cachedOrders);
+          setOrdersLoading(false);
+        }
+      } catch (error) {
+        console.error("Orders cache read failed:", error);
+      }
+
+      await runNetworkRefresh();
+    };
+
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(() => {
+        run();
       });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(id);
+      };
+    }
+
+    const timeoutId = setTimeout(() => {
+      run();
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const catalogProps = {
@@ -278,6 +504,8 @@ function App() {
     imageFilter,
     sortOption,
     layoutMode,
+    setLayoutMode,
+    showByCategory,
     showOutOfStock,
     setShowOutOfStock,
     mostSellingOnly,
@@ -304,9 +532,29 @@ function App() {
         />
       )}
 
+      {fetchError && (
+        <Alert
+          severity="warning"
+          onClose={() => setFetchError("")}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
+          }
+          sx={{ mx: { xs: 1.5, sm: 2 }, my: 1 }}
+        >
+          {fetchError}
+        </Alert>
+      )}
+
       <AppRoutes
         products={products}
         orders={orders}
+        ordersLoading={ordersLoading}
         cart={cart}
         addToCart={addToCart}
         increaseQty={increaseQty}
@@ -340,6 +588,8 @@ function App() {
           setSortOption={setSortOption}
           layoutMode={layoutMode}
           setLayoutMode={setLayoutMode}
+          showByCategory={showByCategory}
+          setShowByCategory={setShowByCategory}
         />
       )}
     </>

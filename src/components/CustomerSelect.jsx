@@ -1,4 +1,26 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
+import {
+  Avatar,
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogContent,
+  Divider,
+  IconButton,
+  InputAdornment,
+  List,
+  ListItemButton,
+  ListItemText,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import SearchIcon from "@mui/icons-material/Search";
+import AddIcon from "@mui/icons-material/Add";
+import CloseIcon from "@mui/icons-material/Close";
 
 const API_BASE = "https://offline-catalog-backend-production.up.railway.app";
 
@@ -14,22 +36,22 @@ export default function CustomerSelect({
   const [newMobile, setNewMobile] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (open) {
-      setSearch("");
-      setNewName("");
-      setNewMobile("");
-    }
-  }, [open]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return customers;
 
-  const filtered = customers.filter(
-    (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.mobile?.includes(search),
-  );
+    return customers.filter(
+      (c) =>
+        c.name?.toLowerCase().includes(q) ||
+        (c.mobile || "").includes(search.trim()),
+    );
+  }, [customers, search]);
+
+  const quickCustomers = useMemo(() => customers.slice(0, 3), [customers]);
 
   async function addCustomer() {
-    if (!newName.trim()) return;
+    const safeName = newName.trim();
+    if (!safeName) return;
 
     try {
       setLoading(true);
@@ -38,7 +60,7 @@ export default function CustomerSelect({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: newName.trim(),
+          name: safeName,
           mobile: newMobile.trim() || null,
         }),
       });
@@ -48,9 +70,11 @@ export default function CustomerSelect({
       }
 
       const savedCustomer = await res.json();
-
       setCustomers([savedCustomer, ...customers]);
       setCustomerName(savedCustomer.name);
+      setNewName("");
+      setNewMobile("");
+      setSearch("");
       setOpen(false);
     } catch (err) {
       alert("Failed to add customer");
@@ -62,136 +86,161 @@ export default function CustomerSelect({
 
   return (
     <>
-      <button style={btn} onClick={() => setOpen(true)}>
-        👤 {customerName || "Select Customer"}
-      </button>
+      <Paper
+        onClick={() => setOpen(true)}
+        sx={{
+          px: 1.4,
+          py: 0.95,
+          borderRadius: 99,
+          border: "1px solid rgba(148,163,184,0.28)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          transition: "all 220ms ease",
+          "&:hover": { borderColor: "#93c5fd" },
+        }}
+      >
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+          <Avatar sx={{ width: 28, height: 28, bgcolor: "#e2e8f0", color: "#0f172a" }}>
+            <PersonOutlineIcon fontSize="small" />
+          </Avatar>
+          <Typography
+            sx={{
+              fontWeight: 700,
+              fontSize: 14,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {customerName ? `Customer: ${customerName}` : "Select Customer"}
+          </Typography>
+        </Stack>
 
-      {open && (
-        <div style={overlay} onClick={() => setOpen(false)}>
-          <div style={modal} onClick={(e) => e.stopPropagation()}>
-            <h3>Select Customer</h3>
+        {customerName && (
+          <Chip
+            size="small"
+            label="Selected"
+            sx={{ bgcolor: "#ecfdf3", color: "#15803d", fontWeight: 700 }}
+          />
+        )}
+      </Paper>
 
-            <input
-              placeholder="Search customer…"
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: {
+            borderRadius: { xs: "18px 18px 0 0", sm: 3 },
+            m: { xs: 0, sm: 2 },
+            mt: { xs: "auto", sm: 2 },
+          },
+        }}
+      >
+        <DialogContent sx={{ p: 2 }}>
+          <Stack spacing={1.5}>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography variant="h6" fontWeight={800}>
+                Select Customer
+              </Typography>
+              <IconButton onClick={() => setOpen(false)} size="small">
+                <CloseIcon />
+              </IconButton>
+            </Stack>
+
+            <TextField
+              size="small"
+              placeholder="Search by name or mobile"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={input}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
             />
 
-            <div style={list}>
-              {filtered.map((c) => (
-                <div
-                  key={c.id}
-                  style={item}
-                  onClick={() => {
-                    setCustomerName(c.name);
-                    setOpen(false);
-                  }}
-                >
-                  <strong>{c.name}</strong>
-                  {c.mobile && <div style={small}>{c.mobile}</div>}
-                </div>
-              ))}
-              {filtered.length === 0 && <div style={empty}>No customers</div>}
-            </div>
+            {!search && quickCustomers.length > 0 && (
+              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+                {quickCustomers.map((c) => (
+                  <Chip
+                    key={`quick-${c.id}`}
+                    label={c.name}
+                    onClick={() => {
+                      setCustomerName(c.name);
+                      setOpen(false);
+                    }}
+                    clickable
+                    sx={{ fontWeight: 600 }}
+                  />
+                ))}
+              </Stack>
+            )}
 
-            <hr />
+            <Paper
+              variant="outlined"
+              sx={{ borderRadius: 2, maxHeight: 220, overflowY: "auto" }}
+            >
+              <List dense disablePadding>
+                {filtered.map((c) => (
+                  <ListItemButton
+                    key={c.id}
+                    onClick={() => {
+                      setCustomerName(c.name);
+                      setOpen(false);
+                    }}
+                  >
+                    <ListItemText
+                      primary={c.name}
+                      secondary={c.mobile || "No mobile"}
+                      primaryTypographyProps={{ fontWeight: 700 }}
+                    />
+                  </ListItemButton>
+                ))}
+                {filtered.length === 0 && (
+                  <Box sx={{ py: 3, textAlign: "center", color: "text.secondary" }}>
+                    No customers found
+                  </Box>
+                )}
+              </List>
+            </Paper>
 
-            <h4>Add New Customer</h4>
+            <Divider />
 
-            <input
-              placeholder="Customer name *"
+            <Typography fontWeight={800}>Add New Customer</Typography>
+
+            <TextField
+              size="small"
+              label="Customer Name"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              style={input}
+              required
             />
-
-            <input
-              placeholder="Mobile (optional)"
+            <TextField
+              size="small"
+              label="Mobile (optional)"
               value={newMobile}
               onChange={(e) => setNewMobile(e.target.value)}
-              style={input}
+              inputMode="numeric"
             />
 
-            <button style={addBtn} onClick={addCustomer} disabled={loading}>
-              {loading ? "Saving..." : "➕ Add & Select"}
-            </button>
-          </div>
-        </div>
-      )}
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={addCustomer}
+              disabled={loading || !newName.trim()}
+              sx={{ borderRadius: 2, py: 1.1, fontWeight: 700 }}
+            >
+              {loading ? "Saving..." : "Add & Select"}
+            </Button>
+          </Stack>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
-
-/* ================= STYLES ================= */
-
-const btn = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 12,
-  border: "1px solid #d1d5db",
-  background: "#f9fafb",
-  fontWeight: 700,
-  cursor: "pointer",
-};
-
-const overlay = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.4)",
-  zIndex: 100,
-};
-
-const modal = {
-  position: "absolute",
-  bottom: 0,
-  left: 0,
-  right: 0,
-  background: "#fff",
-  borderTopLeftRadius: 16,
-  borderTopRightRadius: 16,
-  padding: 16,
-  maxHeight: "85vh",
-  overflowY: "auto",
-};
-
-const input = {
-  width: "100%",
-  padding: "10px 12px",
-  borderRadius: 10,
-  border: "1px solid #d1d5db",
-  marginBottom: 8,
-};
-
-const list = {
-  maxHeight: 220,
-  overflowY: "auto",
-};
-
-const item = {
-  padding: "10px 8px",
-  borderBottom: "1px solid #f3f4f6",
-  cursor: "pointer",
-};
-
-const small = {
-  fontSize: 12,
-  color: "#6b7280",
-};
-
-const empty = {
-  padding: 12,
-  textAlign: "center",
-  color: "#6b7280",
-};
-
-const addBtn = {
-  marginTop: 10,
-  width: "100%",
-  padding: 12,
-  borderRadius: 12,
-  border: "none",
-  background: "#2563eb",
-  color: "#fff",
-  fontWeight: 700,
-};

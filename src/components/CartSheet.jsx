@@ -7,7 +7,6 @@ import {
   Button,
   TextField,
   Card,
-  Divider,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -21,7 +20,6 @@ export default function CartSheet({
   onCheckout,
   customerName,
 }) {
-  /* ================= TOTAL ================= */
   const total = cart.reduce((s, i) => {
     const qty = Number(i.qty || 0);
     const price = Number(i.price || 0);
@@ -42,7 +40,6 @@ export default function CartSheet({
         },
       }}
     >
-      {/* ================= HEADER ================= */}
       <Box
         sx={{
           p: 2,
@@ -54,10 +51,10 @@ export default function CartSheet({
       >
         <Box>
           <Typography fontWeight={800} fontSize={18}>
-            🛒 Cart
+            Cart
           </Typography>
           <Typography fontSize={13} color="primary.main">
-            👤 {customerName || "No customer selected"}
+            Customer: {customerName || "No customer selected"}
           </Typography>
         </Box>
 
@@ -66,7 +63,6 @@ export default function CartSheet({
         </IconButton>
       </Box>
 
-      {/* ================= ITEMS ================= */}
       <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
         {cart.length === 0 && (
           <Typography color="text.secondary" textAlign="center" mt={6}>
@@ -91,9 +87,7 @@ export default function CartSheet({
                 Unit: {c.unitName}
               </Typography>
 
-              {/* INPUT ROW */}
               <Stack direction="row" spacing={1.5} alignItems="center">
-                {/* PRICE */}
                 <TextField
                   label="Rate"
                   value={Number(c.price || 0) * (c.unitMultiplier || 1)}
@@ -101,34 +95,33 @@ export default function CartSheet({
                   onChange={(e) =>
                     updateCartItem(c.productId, c.unitName, {
                       price:
-                        Number(e.target.value || 0) / (c.unitMultiplier || 1), // 🔥 string allow
+                        Number(e.target.value || 0) / (c.unitMultiplier || 1),
                     })
                   }
                   onBlur={(e) => {
                     const val = Number(e.target.value);
-                    updateCartItem(c.productId, {
-                      price: val > 0 ? val : 0,
+                    updateCartItem(c.productId, c.unitName, {
+                      price: (val > 0 ? val : 0) / (c.unitMultiplier || 1),
                     });
                   }}
                   size="small"
                   sx={{ width: 90 }}
                 />
 
-                <Typography>×</Typography>
+                <Typography>x</Typography>
 
-                {/* QTY */}
                 <TextField
                   label="Qty"
                   value={c.qty ?? ""}
                   inputMode="numeric"
                   onChange={(e) =>
-                    updateCartItem(c.productId, {
-                      qty: e.target.value, // 🔥 allow empty
+                    updateCartItem(c.productId, c.unitName, {
+                      qty: e.target.value,
                     })
                   }
                   onBlur={(e) => {
                     const val = Number(e.target.value);
-                    updateCartItem(c.productId, {
+                    updateCartItem(c.productId, c.unitName, {
                       qty: val > 0 ? val : 1,
                     });
                   }}
@@ -136,19 +129,17 @@ export default function CartSheet({
                   sx={{ width: 80 }}
                 />
 
-                {/* ITEM TOTAL */}
                 <Typography
                   sx={{ ml: "auto" }}
                   fontWeight={800}
                   color="success.main"
                 >
-                  ₹
+                  Rs{" "}
                   {Number(c.qty || 0) *
                     Number(c.price || 0) *
                     (c.unitMultiplier || 1)}
                 </Typography>
 
-                {/* REMOVE */}
                 <IconButton
                   onClick={() => removeFromCart(c.productId, c.unitName)}
                   color="error"
@@ -161,7 +152,6 @@ export default function CartSheet({
         </Stack>
       </Box>
 
-      {/* ================= FOOTER ================= */}
       {cart.length > 0 && (
         <Box
           sx={{
@@ -180,7 +170,7 @@ export default function CartSheet({
               Grand Total
             </Typography>
             <Typography fontSize={20} fontWeight={800}>
-              ₹{total}
+              Rs {total}
             </Typography>
           </Stack>
 

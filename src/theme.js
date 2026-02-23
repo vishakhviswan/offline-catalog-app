@@ -3,108 +3,87 @@ import { createTheme } from "@mui/material/styles";
 const theme = createTheme({
   palette: {
     primary: {
-      main: "#0EA5A4", // Electric Teal
-      dark: "#0F766E",
-      light: "#99F6E4",
+      main: "#2563eb",
+      dark: "#1d4ed8",
+      light: "#93c5fd",
       contrastText: "#ffffff",
     },
     secondary: {
-      main: "#7C3AED", // Royal Violet
-      light: "#EDE9FE",
+      main: "#16a34a",
+      light: "#bbf7d0",
       contrastText: "#ffffff",
     },
     warning: {
-      main: "#F59E0B",
+      main: "#f59e0b",
     },
     error: {
-      main: "#EF4444",
+      main: "#ef4444",
     },
     success: {
-      main: "#22C55E",
+      main: "#16a34a",
     },
     background: {
-      default: "#F8FAFC",
-      paper: "#FFFFFF",
+      default: "#f8fafc",
+      paper: "#ffffff",
     },
     text: {
-      primary: "#0F172A",
+      primary: "#0f172a",
       secondary: "#475569",
-      disabled: "#94A3B8",
+      disabled: "#94a3b8",
     },
-    divider: "#E5E7EB",
-
-    /* 👇 helpers for image overlays */
-    overlay: {
-      dark: "rgba(0,0,0,0.55)",
-      light: "rgba(255,255,255,0.7)",
-    },
+    divider: "#e2e8f0",
   },
 
   shape: {
-    borderRadius: 14,
+    borderRadius: 16,
   },
 
   typography: {
-    fontFamily: `"Inter", "Roboto", "Helvetica", "Arial", sans-serif`,
-
-    /* Headings use Poppins for punch */
-    h4: {
-      fontFamily: `"Poppins", "Inter", sans-serif`,
-      fontWeight: 700,
-    },
-    h5: {
-      fontFamily: `"Poppins", "Inter", sans-serif`,
-      fontWeight: 600,
-    },
-    h6: {
-      fontFamily: `"Poppins", "Inter", sans-serif`,
-      fontWeight: 600,
-    },
-
-    subtitle1: {
-      fontWeight: 600,
-    },
-
-    body1: {
-      fontSize: 14,
-    },
-    body2: {
-      fontSize: 13,
-      color: "#475569",
-    },
-
+    fontFamily: '"Inter", "Poppins", sans-serif',
+    h4: { fontFamily: '"Poppins", "Inter", sans-serif', fontWeight: 800, letterSpacing: -0.2, fontSize: "2rem" },
+    h5: { fontFamily: '"Poppins", "Inter", sans-serif', fontWeight: 800, letterSpacing: -0.1, fontSize: "1.6rem" },
+    h6: { fontFamily: '"Poppins", "Inter", sans-serif', fontWeight: 800, fontSize: "1.28rem" },
+    subtitle1: { fontWeight: 600 },
+    body1: { fontSize: 14, fontWeight: 500 },
+    body2: { fontSize: 13, color: "#475569", fontWeight: 500 },
     button: {
-      fontFamily: `"Poppins", "Inter", sans-serif`,
       textTransform: "none",
-      fontWeight: 600,
-      letterSpacing: 0.3,
+      fontWeight: 700,
+      letterSpacing: 0.2,
     },
   },
 
   components: {
-    MuiButton: {
+    MuiCssBaseline: {
       styleOverrides: {
-        root: {
-          borderRadius: 14,
-          paddingInline: 18,
-          paddingBlock: 10,
+        body: {
+          background: "linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%)",
         },
       },
     },
-
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 16,
+          paddingInline: 18,
+          paddingBlock: 10,
+          transition: "all 220ms ease",
+        },
+      },
+    },
     MuiCard: {
       styleOverrides: {
         root: {
           borderRadius: 18,
-          boxShadow: "0 10px 28px rgba(0,0,0,0.08)",
+          boxShadow: "0 10px 24px rgba(15,23,42,0.08)",
         },
       },
     },
-
     MuiChip: {
       styleOverrides: {
         root: {
           fontWeight: 600,
+          borderRadius: 999,
         },
       },
     },

@@ -2,8 +2,8 @@ import {
   Drawer,
   Box,
   Typography,
-  Stack,
   Button,
+  Switch,
   RadioGroup,
   FormControlLabel,
   Radio,
@@ -18,6 +18,8 @@ export default function FilterDrawer({
   setSortOption,
   layoutMode,
   setLayoutMode,
+  showByCategory,
+  setShowByCategory,
 }) {
   return (
     <Drawer anchor="bottom" open={open} onClose={onClose}>
@@ -28,11 +30,7 @@ export default function FilterDrawer({
           onChange={(e) => setImageFilter(e.target.value)}
         >
           <FormControlLabel value="all" control={<Radio />} label="All" />
-          <FormControlLabel
-            value="with"
-            control={<Radio />}
-            label="With Image"
-          />
+          <FormControlLabel value="with" control={<Radio />} label="With Image" />
           <FormControlLabel
             value="without"
             control={<Radio />}
@@ -47,47 +45,42 @@ export default function FilterDrawer({
           value={sortOption}
           onChange={(e) => setSortOption(e.target.value)}
         >
-          <FormControlLabel
-            value="default"
-            control={<Radio />}
-            label="Default"
-          />
+          <FormControlLabel value="default" control={<Radio />} label="Default" />
           <FormControlLabel
             value="price-low"
             control={<Radio />}
-            label="Price Low → High"
+            label="Price Low -> High"
           />
           <FormControlLabel
             value="price-high"
             control={<Radio />}
-            label="Price High → Low"
+            label="Price High -> Low"
           />
-          <FormControlLabel value="az" control={<Radio />} label="A → Z" />
+          <FormControlLabel value="az" control={<Radio />} label="A -> Z" />
         </RadioGroup>
 
         <Typography fontWeight={800} mt={2}>
           Layout
         </Typography>
+        <FormControlLabel
+          sx={{ mb: 1 }}
+          control={
+            <Switch
+              checked={showByCategory}
+              onChange={(e) => setShowByCategory(e.target.checked)}
+            />
+          }
+          label="Show By Category"
+        />
         <RadioGroup
           value={layoutMode}
           onChange={(e) => setLayoutMode(e.target.value)}
         >
           <FormControlLabel value="list" control={<Radio />} label="List" />
-          <FormControlLabel
-            value="grid-2"
-            control={<Radio />}
-            label="2 Column"
-          />
-          <FormControlLabel
-            value="grid-3"
-            control={<Radio />}
-            label="3 Column"
-          />
-          <FormControlLabel
-            value="grid-4"
-            control={<Radio />}
-            label="4 Column"
-          />
+          <FormControlLabel value="grid-1" control={<Radio />} label="1 Column" />
+          <FormControlLabel value="grid-2" control={<Radio />} label="2 Column" />
+          <FormControlLabel value="grid-3" control={<Radio />} label="3 Column" />
+          <FormControlLabel value="grid-4" control={<Radio />} label="4 Column" />
         </RadioGroup>
 
         <Button fullWidth variant="contained" onClick={onClose}>

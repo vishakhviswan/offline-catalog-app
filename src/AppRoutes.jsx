@@ -37,6 +37,7 @@ function ProductRoute({
 export default function AppRoutes({
   products,
   orders,
+  ordersLoading,
   cart,
   addToCart,
   increaseQty,
@@ -57,6 +58,7 @@ export default function AppRoutes({
         element={
           <Orders
             orders={orders}
+            loading={ordersLoading}
             onDeleteOrder={onDeleteOrder}
             onBack={() => navigate("/")}
           />
