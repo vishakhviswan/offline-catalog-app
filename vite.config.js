@@ -49,7 +49,7 @@ export default defineConfig({
           },
           {
             urlPattern:
-              /^https:\/\/offline-catalog-backend-production\.up\.railway\.app\/api\/(products|categories)(\?.*)?$/,
+             /^https:\/\/offline-catalog-backend\.onrender\.com\/api\/(products|categories)(\?.*)?$/,
             handler: "StaleWhileRevalidate",
             options: {
               cacheName: "catalog-core-api",
@@ -64,7 +64,7 @@ export default defineConfig({
           },
           {
             urlPattern:
-              /^https:\/\/offline-catalog-backend-production\.up\.railway\.app\/api\/(customers|orders)(\?.*)?$/,
+              /^https:\/\/offline-catalog-backend\.onrender\.com\/api\/(customers|orders)(\?.*)?$/,
             handler: "NetworkFirst",
             options: {
               cacheName: "catalog-dynamic-api",

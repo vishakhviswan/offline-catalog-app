@@ -16,7 +16,7 @@ import {
   saveProductsCache,
 } from "./db";
 
-const API_BASE = "https://offline-catalog-backend-production.up.railway.app";
+const API_BASE = "https://offline-catalog-backend.onrender.com";
 
 function App() {
   const navigate = useNavigate();
